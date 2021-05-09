@@ -11,6 +11,7 @@ import * as user from './models/User';
 import {userRouter} from './routers/user_router'
 import {authRouter} from "./routers/auth_router";
 import {NextFunction} from "express";
+import {leaderboardRouter} from "./routers/leaderboard_router";
 
 let app = express();
 
@@ -19,8 +20,9 @@ app.use(cors());
 app.use(express.json());
 
 // Routers
-app.use("/v1/users", userRouter);
 app.use("/v1/", authRouter);
+app.use("/v1/users", userRouter);
+app.use("/v1/leaderboard", leaderboardRouter);
 
 // Error handling middleware
 // @ts-ignore
@@ -63,7 +65,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
     .then(      // Once database is initialized we start the HTTP server
         () => {
             let server = http.createServer(app);
-            server.listen(8080, () => console.log("HTTP Server started on port 8080"));
+            server.listen(8080,"0.0.0.0", () => console.log("HTTP Server started on port 8080"));
         })
     .catch(
         (err) => {

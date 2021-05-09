@@ -2,8 +2,7 @@ import jwt = require("express-jwt");
 export import passport = require('passport');
 import passportHTTP = require('passport-http');
 import * as user from './models/User';
-import {User, Role} from "./models/User";
-import * as mongoose from "mongoose";
+import {User} from "./models/User";
 
 // @ts-ignore
 export let auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
@@ -44,8 +43,6 @@ passport.use(new passportHTTP.BasicStrategy(
                 // @ts-ignore
                 return done(null, false, {status: 500, error: true, message: "User not enabled"});
             }
-
-
         })
     }
 ));
