@@ -1,6 +1,6 @@
 import express = require('express');
 import jsonwebtoken = require('jsonwebtoken');
-import {passport} from '../auth';
+import {auth, passport} from '../auth';
 import * as user from '../models/User';
 
 export let authRouter = express.Router()
@@ -21,6 +21,15 @@ authRouter.get("/login", passport.authenticate('basic', {session: false}), (req,
         return res.status(500).json({error: true, errormessage: ""})
     }
 });
+
+authRouter.get("/logout", auth, (req, res, next) => {
+    if(req.user){
+        req.logOut();
+        return res.status(200).json({error:false, errormessage: ""});
+    }else{
+        return next({status:500, error:true, errormessage: "User not found"});
+    }
+})
 
 authRouter.post("/register", (req, res, next) => {
     if(req.body.username && req.body.password ){
