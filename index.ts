@@ -8,8 +8,8 @@ import cors = require('cors');
 import {Role} from './models/User';
 import * as user from './models/User';
 
-import {user_router} from './routers/user_router'
-import {auth_router} from "./routers/auth_router";
+import {userRouter} from './routers/user_router'
+import {authRouter} from "./routers/auth_router";
 import {NextFunction} from "express";
 
 let app = express();
@@ -19,8 +19,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routers
-app.use("/v1/users", user_router);
-app.use("/v1/", auth_router);
+app.use("/v1/users", userRouter);
+app.use("/v1/", authRouter);
 
 // Error handling middleware
 // @ts-ignore

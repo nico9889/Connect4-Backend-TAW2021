@@ -3,6 +3,7 @@ export import passport = require('passport');
 import passportHTTP = require('passport-http');
 import * as user from './models/User';
 import {User, Role} from "./models/User";
+import * as mongoose from "mongoose";
 
 // @ts-ignore
 export let auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
@@ -10,7 +11,7 @@ export let auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
 declare global {
     namespace Express {
         interface User {
-            id: string
+            id: string,
             username: string,
             roles: string[],
             enabled: boolean,
