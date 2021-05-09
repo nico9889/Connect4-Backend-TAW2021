@@ -3,7 +3,6 @@ import express = require('express');
 import * as user from '../models/User';
 import {auth} from '../auth'
 import {Role} from "../models/User";
-import * as mongoose from "mongoose";
 
 export let userRouter = express.Router();
 
@@ -18,7 +17,7 @@ userRouter.get("/", auth, (req, res, next) => {
             }
         })
         .catch((exception) => {
-            console.log(exception);
+            console.error(exception);
             return next({status: 500, error: true, message: ""});
         })
 });
@@ -29,11 +28,13 @@ function updateUser(id: string, data: any, req, res, next) {
     // @ts-ignore Mongoose can do the correct cast by itself
     user.getModel().updateOne({_id: id}, data)
         .then(() => {
-            if (data.password) {
+            if (data.oldPassword && data.newPassword) {
                 // @ts-ignore
                 user.getModel().findOne({_id: req.params.user_id}).then((u) => {
                     if (u) {
-                        u.setPassword(req.body.password);
+                        if(u.validatePassword(data.oldPassword)) {
+                            u.setPassword(data.newPassword);
+                        }
                         return res.status(200).json({error: false, message: ""});
                     } else {
                         return next({status: 500, error: true, message: "An error has occured"});
@@ -55,11 +56,41 @@ function updateUser(id: string, data: any, req, res, next) {
 interface UpdateUserData {
     username?: string,
     enabled?: string,
-    avatar?: string
+    avatar?: string,
+    oldPassword?: string,
+    newPassword?: string
 }
 
 
 userRouter.route("/:user_id")
+    .get(auth, (req, res, next)=> {
+        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
+            // @ts-ignore
+            user.getModel().findOne({_id:req.params.user_id}, {digest: 0, salt: 0}).then((user)=>{
+                if(user){
+                    return res.status(200).json(user);
+                }else{
+                    return next({status:404, error: true, errormessage:"User not found"});
+                }
+            }).catch((e) => {
+                console.error(e);
+                return next({status:404, error: true, errormessage:"User not found"});
+            });
+        }else{
+            if(req.user && req.user.id === req.params.user_id){
+                // @ts-ignore
+                user.getModel().findOne({_id:req.params.user_id}).then((user)=>{
+                    if(user){
+                        return res.status(200).json(user);
+                    }else{
+                        return next({status:404, error: true, errormessage:"User not found"});
+                    }
+                })
+            }else{
+                return next({status:403, error: true, errormessage:"You are not authorized to access this resourc"});
+            }
+        }
+    })
     .put(auth, (req, res, next) => {
         // Incoming parameters need to be filtered before inserting into the database to avoid unwanted changes (like digest or salt)
         let update: UpdateUserData = {};
@@ -71,6 +102,12 @@ userRouter.route("/:user_id")
         }
         if (req.body.avatar) {
             update.avatar = req.body.avatar;
+        }
+        if (req.body.oldPassword) {
+            update.oldPassword = req.body.oldPassword;
+        }
+        if (req.body.newPassword) {
+            update.newPassword = req.body.newPassword;
         }
         if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
             return updateUser(req.params.user_id, update, req, res, next);

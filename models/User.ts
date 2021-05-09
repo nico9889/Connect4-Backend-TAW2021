@@ -6,7 +6,6 @@ export enum Role{
     MODERATOR = "MODERATOR"
 }
 
-
 export interface User extends mongoose.Document{
     readonly _id: mongoose.Schema.Types.ObjectId,
     username: string,
@@ -17,7 +16,7 @@ export interface User extends mongoose.Document{
     enabled: boolean,
     last_password_change: Date,
     victories: number,
-    losses: number,
+    defeats: number,
     avatar: string,
     setPassword: (pwd:string)=>void,
     validatePassword: (pwd: string)=>boolean,
@@ -62,7 +61,7 @@ let userSchema = new mongoose.Schema<User>({
         min: 0,
         default: 0
     },
-    losses: {
+    defeats: {
         type: mongoose.SchemaTypes.Number,
         required: true,
         min: 0,
@@ -76,11 +75,11 @@ let userSchema = new mongoose.Schema<User>({
 
 userSchema.methods.setPassword = function(pwd: string){
     this.salt = crypto.randomBytes(16).toString('hex');
-
     let hmac = crypto.createHmac('sha512', this.salt);
     hmac.update(pwd);
     this.digest = hmac.digest('hex');
     this.last_password_change = new Date();
+    this.save();
 }
 
 userSchema.methods.validatePassword = function( pwd:string ):boolean {
