@@ -3,9 +3,9 @@ import jsonwebtoken = require('jsonwebtoken');
 import {passport} from '../auth';
 import * as user from '../models/User';
 
-export let auth_router = express.Router()
+export let authRouter = express.Router()
 
-auth_router.get("/login", passport.authenticate('basic', {session: false}), (req, res, next) => {
+authRouter.get("/login", passport.authenticate('basic', {session: false}), (req, res, next) => {
     if (req.user) {
         let token_data = {
             id: req.user.id,
@@ -22,7 +22,7 @@ auth_router.get("/login", passport.authenticate('basic', {session: false}), (req
     }
 });
 
-auth_router.post("/register", (req, res, next) => {
+authRouter.post("/register", (req, res, next) => {
     if(req.body.username && req.body.password ){
         let u = user.newUser({username: req.body.username, enabled: false});
         u.setPassword(req.body.password);
