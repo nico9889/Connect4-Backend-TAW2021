@@ -10,7 +10,7 @@ export interface User extends mongoose.Document {
     readonly _id: mongoose.Schema.Types.ObjectId,
     username: string,
     roles: Role[],
-    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    friends: mongoose.Schema.Types.ObjectId[],
     salt: string,                                   // Random salt
     digest: string,                                 // Password digest
     enabled: boolean,
@@ -24,6 +24,12 @@ export interface User extends mongoose.Document {
     hasRole: (role: Role) => boolean
 }
 
+export interface Friend{
+    username: string;
+    online: boolean;
+    avatar: string;
+}
+
 let userSchema = new mongoose.Schema<User>({
     username: {
         type: mongoose.SchemaTypes.String,
@@ -35,6 +41,11 @@ let userSchema = new mongoose.Schema<User>({
     },
     roles: {
         type: [mongoose.SchemaTypes.String],
+        required: true,
+        default: []
+    },
+    friends: {
+        type: [mongoose.SchemaTypes.ObjectId],
         required: true,
         default: []
     },

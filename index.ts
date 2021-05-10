@@ -13,6 +13,7 @@ import {authRouter} from "./routers/auth_router";
 import {NextFunction} from "express";
 import {leaderboardRouter} from "./routers/leaderboard_router";
 import {notificationsRouter} from "./routers/notifications_router";
+import {friendRouter} from "./routers/friend_router";
 
 let app = express();
 
@@ -25,6 +26,7 @@ app.use("/v1/", authRouter);
 app.use("/v1/users", userRouter);
 app.use("/v1/leaderboard", leaderboardRouter);
 app.use("/v1/notifications", notificationsRouter);
+app.use("/v1/friendship", friendRouter);
 
 // Error handling middleware
 // @ts-ignore
