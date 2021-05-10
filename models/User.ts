@@ -90,7 +90,6 @@ userSchema.methods.setPassword = function (pwd: string) {
     hmac.update(pwd);
     this.digest = hmac.digest('hex');
     this.last_password_change = new Date();
-    this.save();
 }
 
 userSchema.methods.validatePassword = function (pwd: string): boolean {

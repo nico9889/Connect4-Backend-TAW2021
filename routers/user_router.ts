@@ -34,6 +34,7 @@ function updateUser(id: string, data: any, req, res, next) {
                     if (u) {
                         if(u.validatePassword(data.oldPassword)) {
                             u.setPassword(data.newPassword);
+                            u.save();
                         }
                         return res.status(200).json({error: false, message: ""});
                     } else {

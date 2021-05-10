@@ -53,7 +53,7 @@ friendRouter.route("/")
             })
         }
     })
-    .post(auth, (req, res, next)=> {
+    .put(auth, (req, res, next)=> {
     //@ts-ignore
     if(req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver){
         if(checkSentNotification(req.body.notification)){
