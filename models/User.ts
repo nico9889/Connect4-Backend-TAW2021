@@ -1,16 +1,16 @@
 import mongoose = require('mongoose');
 import crypto = require('crypto');
 
-export enum Role{
+export enum Role {
     ADMIN = "ADMIN",
     MODERATOR = "MODERATOR"
 }
 
-export interface User extends mongoose.Document{
+export interface User extends mongoose.Document {
     readonly _id: mongoose.Schema.Types.ObjectId,
     username: string,
     roles: Role[],
-    friends: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     salt: string,                                   // Random salt
     digest: string,                                 // Password digest
     enabled: boolean,
@@ -18,9 +18,9 @@ export interface User extends mongoose.Document{
     victories: number,
     defeats: number,
     avatar: string,
-    setPassword: (pwd:string)=>void,
-    validatePassword: (pwd: string)=>boolean,
-    setRole: (role:Role) => Role,
+    setPassword: (pwd: string) => void,
+    validatePassword: (pwd: string) => boolean,
+    setRole: (role: Role) => Role,
     hasRole: (role: Role) => boolean
 }
 
@@ -73,7 +73,7 @@ let userSchema = new mongoose.Schema<User>({
     }
 });
 
-userSchema.methods.setPassword = function(pwd: string){
+userSchema.methods.setPassword = function (pwd: string) {
     this.salt = crypto.randomBytes(16).toString('hex');
     let hmac = crypto.createHmac('sha512', this.salt);
     hmac.update(pwd);
@@ -82,38 +82,41 @@ userSchema.methods.setPassword = function(pwd: string){
     this.save();
 }
 
-userSchema.methods.validatePassword = function( pwd:string ):boolean {
-    let hmac = crypto.createHmac('sha512', this.salt );
+userSchema.methods.validatePassword = function (pwd: string): boolean {
+    let hmac = crypto.createHmac('sha512', this.salt);
     hmac.update(pwd);
     let digest = hmac.digest('hex');
     return (this.digest === digest);
 }
 
-userSchema.methods.hasRole = function(role:Role): boolean {
-    return this.roles.indexOf(role)>-1;
+userSchema.methods.hasRole = function (role: Role): boolean {
+    return this.roles.indexOf(role) > -1;
 }
 
-userSchema.methods.setRole = function(role: Role): void {
-    if(!this.hasRole(role)){
+userSchema.methods.setRole = function (role: Role): void {
+    if (!this.hasRole(role)) {
         this.roles.push(role);
     }
 }
 
-export function getSchema() { return userSchema;}
+export function getSchema() {
+    return userSchema;
+}
 
 
 // Singleton pattern
 let userModel: mongoose.Model<User>;
-export function getModel() : mongoose.Model<User> {
-    if(!userModel){
+
+export function getModel(): mongoose.Model<User> {
+    if (!userModel) {
         userModel = mongoose.model('User', getSchema());
     }
     return userModel;
 }
 
-export function checkRoles(user: Express.User | undefined, roles: Role[]){
+export function checkRoles(user: Express.User | undefined, roles: Role[]) {
     let allowed = false;
-    if(user){
+    if (user) {
         let _usermodel = getModel();
         let u = new _usermodel(user);
         roles.forEach(item => {
@@ -123,7 +126,7 @@ export function checkRoles(user: Express.User | undefined, roles: Role[]){
     return allowed;
 }
 
-export function newUser(data: Express.User | Object /* FIXME: why in the world JS has to be so ugly */): User{
+export function newUser(data: Express.User | Object /* FIXME: why in the world JS has to be so ugly */): User {
     let _usermodel = getModel();
     return new _usermodel(data);
 }
