@@ -25,6 +25,7 @@ export interface User extends mongoose.Document {
 }
 
 export interface Friend{
+    id: string;
     username: string;
     online: boolean;
     avatar: string;
@@ -136,7 +137,7 @@ export function checkRoles(user: Express.User | undefined, roles: Role[]) {
     return allowed;
 }
 
-export function newUser(data: Express.User | Object /* FIXME: why in the world JS has to be so ugly */): User {
+export function newUser(data: { username: string, enabled: boolean }): User {
     let _usermodel = getModel();
     return new _usermodel(data);
 }

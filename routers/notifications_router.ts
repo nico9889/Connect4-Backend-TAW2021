@@ -1,5 +1,5 @@
 import express = require('express');
-import {auth} from '../auth'
+import {auth} from '../utils/auth'
 import {getNotifications} from "../models/Notification";
 
 export let notificationsRouter = express.Router();

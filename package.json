@@ -4,13 +4,16 @@
   "description": "Connect4 Backend for TAW 2021 project",
   "main": "index.js",
   "dependencies": {
+    "@thream/socketio-jwt": "^2.1.0",
+    "@types/socket.io": "^2.1.13",
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "express-jwt": "^6.0.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.12.7",
     "passport": "^0.4.1",
-    "passport-http": "^0.3.0"
+    "passport-http": "^0.3.0",
+    "socket.io": "^4.0.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.10",

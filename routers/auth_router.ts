@@ -1,11 +1,11 @@
 import express = require('express');
 import jsonwebtoken = require('jsonwebtoken');
-import {auth, passport} from '../auth';
+import {auth, passport} from '../utils/auth';
 import * as user from '../models/User';
 
 export let authRouter = express.Router()
 
-authRouter.get("/login", passport.authenticate('basic', {session: false}), (req, res, next) => {
+authRouter.get("/login", passport.authenticate('basic', {session:false}), (req, res, next) => {
     if (req.user) {
         let token_data = {
             id: req.user.id,

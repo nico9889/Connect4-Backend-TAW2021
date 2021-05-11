@@ -1,5 +1,4 @@
 import mongoose = require('mongoose');
-import {User} from "./User";
 
 export interface Message extends mongoose.Document {
     readonly _id: mongoose.Schema.Types.ObjectId,
@@ -29,15 +28,24 @@ let messageSchema = new mongoose.Schema<Message>({
     }
 });
 
-export function getSchema() { return messageSchema;}
+export function getSchema() {
+    return messageSchema;
+}
 
 
 // Singleton pattern
 let messageModel: mongoose.Model<Message>;
-export function getModel() : mongoose.Model<Message> {
-    if(!messageModel){
-        messageModel = mongoose.model('User', getSchema());
+
+export function getModel(): mongoose.Model<Message> {
+    if (!messageModel) {
+        messageModel = mongoose.model('Message', getSchema());
     }
     return messageModel;
+}
+
+
+export function newMessage(sender: string, receiver: string, content: string) {
+    let _model = getModel();
+    return new _model({sender, receiver, content, date: new Date()});
 }
 

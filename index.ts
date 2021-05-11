@@ -2,6 +2,7 @@ import http = require('http')
 
 import mongoose = require('mongoose');
 
+import {Server} from 'socket.io';
 import express = require('express');
 import cors = require('cors');
 
@@ -14,8 +15,19 @@ import {NextFunction} from "express";
 import {leaderboardRouter} from "./routers/leaderboard_router";
 import {notificationsRouter} from "./routers/notifications_router";
 import {friendRouter} from "./routers/friend_router";
+import {DefaultEventsMap} from 'socket.io/dist/typed-events';
+import {Socket} from "socket.io/dist/socket";
+import {authorize} from "@thream/socketio-jwt";
+import {InMemorySessionStore} from './utils/session';
+import {messageRoute} from "./routers/message_route";
+
+export let io: Server<DefaultEventsMap, DefaultEventsMap>;
+export const sessionStore = new InMemorySessionStore();
 
 let app = express();
+
+const hostname: string | undefined = undefined;
+const port: number = 8080;
 
 // ExpressJS Middleware
 app.use(cors());
@@ -27,6 +39,7 @@ app.use("/v1/users", userRouter);
 app.use("/v1/leaderboard", leaderboardRouter);
 app.use("/v1/notifications", notificationsRouter);
 app.use("/v1/friendship", friendRouter);
+app.use("/v1/messages", messageRoute);
 
 // Error handling middleware
 // @ts-ignore
@@ -37,6 +50,12 @@ app.use((err: ServerError, req: Request, res: Response, next: NextFunction) => {
     // @ts-ignore
     res.status(statusCode).json({statusCode: statusCode, error: true, message: err.message});
 });
+
+// This interface is needed to avoid TypeScript Type Error because of the missing properties on Socket Type
+interface AuthSocket extends Socket {
+    sessionID?: string,
+    userID?: string,
+}
 
 // Mongoose settings to avoid deprecation warning
 mongoose.set('useNewUrlParser', true);
@@ -69,7 +88,39 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
     .then(      // Once database is initialized we start the HTTP server
         () => {
             let server = http.createServer(app);
-            server.listen(8080,"0.0.0.0", () => console.log("HTTP Server started on port 8080"));
+            server.listen(port, "0.0.0.0", () => console.log("HTTP Server started on port 8080"));
+            io = new Server(server, {
+                cors: {
+                    origin: hostname || '*',
+                }
+            });
+
+            io.use(authorize({
+                algorithms: ['HS256'],
+                // @ts-ignore
+                secret: process.env.JWT_SECRET,
+                onAuthentication: async decodedToken => {
+                    return {
+                        id: decodedToken.id,
+                        username : decodedToken.username,
+                        roles: decodedToken.roles,
+                    }
+                }
+            }))
+
+            io.on('connection', (socket => {
+                sessionStore.saveSession(socket.user.id, true);
+                io.emit('broadcast','users');
+                socket.join(socket.user.id);
+                socket.on('disconnect', (listener) => {
+                    io.emit('broadcast','users');
+                    sessionStore.saveSession(socket.user.id, false);
+                })
+            }));
+
+            if (!hostname) {
+                console.log("Hostname is undefined. Using CORS Origin = '*'.")
+            }
         })
     .catch(
         (err) => {
@@ -77,4 +128,3 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             console.log(err);
         }
     )
-

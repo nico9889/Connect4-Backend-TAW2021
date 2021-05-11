@@ -1,8 +1,9 @@
 import express = require('express');
 
 import * as user from '../models/User';
-import {auth} from '../auth'
+import {auth} from '../utils/auth'
 import {Role} from "../models/User";
+import {io} from "../index";
 
 export let userRouter = express.Router();
 
@@ -42,6 +43,7 @@ function updateUser(id: string, data: any, req, res, next) {
                     }
                 })
             } else {
+                io.emit('broadcast', 'users');
                 return res.status(200).json({error: false, message: ""});
             }
         })
@@ -80,7 +82,7 @@ userRouter.route("/:user_id")
         }else{
             if(req.user && req.user.id === req.params.user_id){
                 // @ts-ignore
-                user.getModel().findOne({_id:req.params.user_id}).then((user)=>{
+                user.getModel().findOne({_id:req.params.user_id}, {digest: 0, salt: 0}).then((user)=>{
                     if(user){
                         return res.status(200).json(user);
                     }else{
