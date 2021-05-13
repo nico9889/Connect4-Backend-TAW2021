@@ -7,9 +7,9 @@ import * as message from '../models/Message'
 import {Role} from "../models/User";
 import {io} from "../index";
 
-export let messageRoute = express.Router();
+export let messageRouter = express.Router();
 
-messageRoute.route('/:id')
+messageRouter.route('/:id')
     .get(auth, (req, res, next) => {
         if (req.user) {
             // @ts-ignore

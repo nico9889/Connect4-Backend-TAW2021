@@ -19,7 +19,8 @@ import {DefaultEventsMap} from 'socket.io/dist/typed-events';
 import {Socket} from "socket.io/dist/socket";
 import {authorize} from "@thream/socketio-jwt";
 import {InMemorySessionStore} from './utils/session';
-import {messageRoute} from "./routers/message_route";
+import {messageRouter} from "./routers/message_route";
+import {gameRouter} from "./routers/game_router";
 
 export let io: Server<DefaultEventsMap, DefaultEventsMap>;
 export const sessionStore = new InMemorySessionStore();
@@ -39,7 +40,8 @@ app.use("/v1/users", userRouter);
 app.use("/v1/leaderboard", leaderboardRouter);
 app.use("/v1/notifications", notificationsRouter);
 app.use("/v1/friendship", friendRouter);
-app.use("/v1/messages", messageRoute);
+app.use("/v1/messages", messageRouter);
+app.use("/v1/game", gameRouter);
 
 // Error handling middleware
 // @ts-ignore
@@ -112,8 +114,27 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                 sessionStore.saveSession(socket.user.id, true);
                 io.emit('broadcast','users');
                 socket.join(socket.user.id);
+                user.getModel().findOne({_id: socket.user.id}).then((user) => {
+                    if(user){
+                        for(let friend of user.friends){
+                            if(sessionStore.findSession(friend.toString())){
+                                socket.to(friend.toString()).emit('friend update');
+                            }
+                        }
+                    }
+                })
                 socket.on('disconnect', (listener) => {
-                    io.emit('broadcast','users');
+                    if(socket.user) {
+                        user.getModel().findOne({_id: socket.user.id}).then((user) => {
+                            if (user) {
+                                for (let friend of user.friends) {
+                                    if (sessionStore.findSession(friend.toString())) {
+                                        socket.to(friend.toString()).emit('friend update');
+                                    }
+                                }
+                            }
+                        })
+                    }
                     sessionStore.saveSession(socket.user.id, false);
                 })
             }));

@@ -20,7 +20,7 @@ leaderboardRouter.get("/", (req, res, next) => {
                 })
             }
             leaderboard.sort((a, b) => {
-                return a.ratio - b.ratio;
+                return b.ratio - a.ratio;
             })
             return res.status(200).json(leaderboard.slice(0, 9));
         })

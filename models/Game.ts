@@ -3,19 +3,31 @@ import {User} from "./User";
 
 export interface Game extends mongoose.Document{
     readonly _id: mongoose.Schema.Types.ObjectId,
-    player_one: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
-    player_two: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    playerOne: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    playerOneName: string;
+    playerTwo: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    playerTwoName: string;
     started: Date,
+    ended: Date,
     winner: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    winnerName: string,
 }
 
 let gameSchema = new mongoose.Schema<Game>({
-    player_one: {
+    playerOne: {
         type: mongoose.SchemaTypes.ObjectId,
         required: true
     },
-    player_two: {
+    playerOneName: {
+        type: mongoose.SchemaTypes.String,
+        required: true
+    },
+    playerTwo: {
         type: mongoose.SchemaTypes.ObjectId,
+        required: true
+    },
+    playerTwoName: {
+        type: mongoose.SchemaTypes.String,
         required: true
     },
     started: {
@@ -23,8 +35,16 @@ let gameSchema = new mongoose.Schema<Game>({
         required: true,
         default: new Date()
     },
+    ended: {
+        type: mongoose.SchemaTypes.Date,
+        required: false,
+    },
     winner: {
         type: mongoose.SchemaTypes.ObjectId,
+        required: false
+    },
+    winnerName: {
+        type: mongoose.SchemaTypes.String,
         required: false
     }
 });
@@ -47,8 +67,10 @@ export function newGame(player1: User, player2: User): Game{
     let _gamemodel = getModel();
     if(player1!==player2) {
         let data = {
-            player_one: player1._id,
-            player_two: player2._id
+            playerOne: player1._id,
+            playerOneName: player1.username,
+            playerTwo: player2._id,
+            playerTwoName: player2.username
         }
         return new _gamemodel(data);
     }

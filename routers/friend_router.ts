@@ -3,124 +3,138 @@ import {auth} from '../utils/auth'
 import {checkSentNotification, newNotification, Type} from "../models/Notification";
 import * as user from '../models/User';
 import {Friend} from "../models/User";
-import {sessionStore} from "../index";
+import {io, sessionStore} from "../index";
 
 export let friendRouter = express.Router();
 
 friendRouter.route("/")
     .get(auth, (req, res, next) => {
-        if(req.user) {
+        if (req.user) {
             // @ts-ignore
             user.getModel().findOne({_id: req.user.id}).then((current_user) => {
-                if(current_user){
+                if (current_user) {
                     user.getModel().find({
-                        _id: {$in:
+                        _id: {
+                            $in:
                             current_user.friends
                         }
                     }).then((friends) => {
                         let out: Friend[] = [];
                         friends.forEach((friend) => {
                             let online = sessionStore.findSession(friend._id.toString());
-                            out.push({id:friend._id.toString(),username:friend.username, online:online, avatar:friend.avatar});
+                            out.push({
+                                id: friend._id.toString(),
+                                username: friend.username,
+                                online: online,
+                                avatar: friend.avatar
+                            });
                         })
                         return res.status(200).json(out);
                     }).catch((err) => {
                         console.error(err);
-                        return next({status:500, error:true, errormessage:"Generic error occurred while retrieving friends"});
+                        return next({
+                            status: 500,
+                            error: true,
+                            errormessage: "Generic error occurred while retrieving friends"
+                        });
                     })
                 }
             }).catch((err) => {
                 console.error(err);
-                return next({status:500, error:true, errormessage:"Generic error occurred while retrieving friends"});
+                return next({
+                    status: 500,
+                    error: true,
+                    errormessage: "Generic error occurred while retrieving friends"
+                });
             })
         }
-    })
-    .put(auth, (req, res, next)=> {
-        //@ts-ignore
-        if(req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver){
-            if(checkSentNotification(req.body.notification)){
-                if(req.body.accept===true) {
-                    user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
-                        user.getModel().findOne({_id: req.body.notification.receiver}).then((receiver) => {
-                            if (sender && receiver) {
-                                if (!sender.friends.includes(receiver._id) && !receiver.friends.includes(sender._id)) {
-                                    sender.friends.push(receiver._id);
-                                    receiver.friends.push(sender._id);
-                                    sender.save();
-                                    receiver.save();
-                                    return res.status(200).json({error:false,errormessage:""});
-                                } else {
-                                    return next({status: 500, error: true, errormessage: "You are already friend!"})
-                                }
-                            } else {
-                                return next({status: 500, error: true, errormessage: "Invalid or expired request"});
-                            }
-                        });
-                    });
-                }else{
-                    return res.status(200).json({error:false,errormessage:""});
-                }
-            }else{
-                return next({status:500, error:true, errormessage:"Invalid or expired request"});
-            }
-        }
-    })
-
-
-friendRouter.post("/:username", auth, (req, res, next) => {
+    }).post(auth, (req, res, next) => {
     if (req.user) {
         // @ts-ignore Mongoose is casting automatically
-        user.getModel().findOne({username:req.params.username}).then((receiver)=>{
-            if(req.body.request==true && req.user !== undefined && receiver && receiver._id.toString() !== req.user.id){
-                console.log("Sending notification");
-                newNotification(Type.FRIEND_REQUEST, req.user, receiver, 10);
-                console.log("Sending confirmation");
-                return res.status(200).json({error:false, errormessage:""});
-            }else{
-                return next({status:500, error:true, errormessage:"Invalid request"});
+        user.getModel().findOne({username: req.body.username}).then((receiver) => {
+            if (req.body.request == true && req.user !== undefined && receiver && receiver._id.toString() !== req.user.id) {
+                newNotification(Type.FRIEND_REQUEST, req.user, receiver._id.toString(), 10);
+                io.to(receiver._id.toString()).emit("notification update");
+                return res.status(200).json({error: false, errormessage: ""});
+            } else {
+                return next({status: 500, error: true, errormessage: "Invalid request"});
             }
-        }).catch((e)=>{
+        }).catch((e) => {
             console.error(e);
-            return next({status:404, error:true, errormessage:"User not found"});
+            return next({status: 404, error: true, errormessage: "User not found"});
         })
+    }
+}).put(auth, (req, res, next) => {
+    //@ts-ignore
+    if (req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver) {
+        if (checkSentNotification(req.body.notification)) {
+            if (req.body.accept === true) {
+                user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
+                    user.getModel().findOne({_id: req.body.notification.receiver}).then((receiver) => {
+                        if (sender && receiver) {
+                            if (!sender.friends.includes(receiver._id) && !receiver.friends.includes(sender._id)) {
+                                sender.friends.push(receiver._id);
+                                receiver.friends.push(sender._id);
+                                sender.save();
+                                receiver.save();
+                                return res.status(200).json({error: false, errormessage: ""});
+                            } else {
+                                return next({status: 500, error: true, errormessage: "You are already friend!"})
+                            }
+                        } else {
+                            return next({status: 500, error: true, errormessage: "Invalid or expired request"});
+                        }
+                    });
+                });
+            } else {
+                return res.status(200).json({error: false, errormessage: ""});
+            }
+        } else {
+            return next({status: 500, error: true, errormessage: "Invalid or expired request"});
+        }
     }
 })
 
 friendRouter.route("/:id")
     .get(auth, (req, res, next) => {
-        if(req.user){
+        if (req.user) {
             // @ts-ignore
-            user.getModel().findOne({_id: req.user.id}).then((currentUser)=>{
-                if(currentUser) {
-                    const friendId = currentUser.friends.find((id)=> {
+            user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
+                if (currentUser) {
+                    const friendId = currentUser.friends.find((id) => {
                         return id.toString() === req.params.id;
                     });
-                    if (friendId){
+                    if (friendId) {
                         user.getModel().findOne({_id: friendId}).then((user) => {
-                            if(user){
+                            if (user) {
                                 const online = sessionStore.findSession(user._id.toString());
-                                const friend: Friend = {id:user.id, username:user.username,online:online,avatar:user.avatar};
+                                const friend: Friend = {
+                                    id: user.id,
+                                    username: user.username,
+                                    online: online,
+                                    avatar: user.avatar
+                                };
                                 return res.status(200).json(friend);
-                            }else{
-                                return next({status:500, error:true, errormessage:"Generic error"});
+                            } else {
+                                return next({status: 500, error: true, errormessage: "Generic error"});
                             }
                         })
-                    }else{
-                        return next({status:403, error:true, errormessage:"User is not your friend"});
+                    } else {
+                        return next({status: 403, error: true, errormessage: "User is not your friend"});
                     }
-                }else{
-                    return next({status:500, error:true, errormessage:"Generic error"});
+                } else {
+                    return next({status: 500, error: true, errormessage: "Generic error"});
                 }
             }).catch(
-                (err)=>{
+                (err) => {
                     console.error(err);
-                    return next({status:500, error:true, errormessage:"Generic error"});
+                    return next({status: 500, error: true, errormessage: "Generic error"});
                 }
             )
-        }else{
-            return next({status:500, error:true, errormessage:"Generic error"});
+        } else {
+            return next({status: 500, error: true, errormessage: "Generic error"});
         }
     })
-    .delete(auth, (req, res, next)=>{
+    .delete(auth, (req, res, next) => {
 
-})
+    })

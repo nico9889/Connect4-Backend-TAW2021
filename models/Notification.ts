@@ -13,11 +13,11 @@ class Notification {
     receiver: string;
     expiry: Date;
 
-    constructor(type: Type, senderUser: Express.User, receiverUser: User, expiry: number) {
+    constructor(type: Type, senderUser: Express.User, receiverUser: string, expiry: number) {
         this.type = type;
         this.sender = senderUser.id;
         this.senderUsername = senderUser.username;
-        this.receiver = receiverUser.id;
+        this.receiver = receiverUser;
         this.expiry = new Date(Date.now() + expiry * 60000);
     }
 }
@@ -29,8 +29,10 @@ function equals(not1: Notification, not2: Notification): boolean{
 let notifications: Notification[] = [];
 let sentNotifications: Notification[] = [];
 
-export function newNotification(type: Type, senderUser: Express.User, receiverUser: User, expiry: number): void {
-    notifications.push(new Notification(type, senderUser, receiverUser, expiry));
+export function newNotification(type: Type, senderUser: Express.User | undefined, receiverUser: string, expiry: number): void {
+    if(senderUser) {
+        notifications.push(new Notification(type, senderUser, receiverUser, expiry));
+    }
 }
 
 export function getNotifications(user: Express.User): Notification[] {
