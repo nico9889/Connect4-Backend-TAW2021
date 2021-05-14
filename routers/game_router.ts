@@ -162,7 +162,7 @@ gameRouter.route('/invite')
                                         playerOneTurn: true,
                                         spectators: []
                                     });
-                                    if (sessionStore.findSession(playerTwo._id.toString())) {
+                                    if (sessionStore.findSession(req.body.notification.receiver.sender)) {
                                         io.to(playerTwo._id.toString()).emit("game new", {
                                             id: newGame._id.toString()
                                         })
