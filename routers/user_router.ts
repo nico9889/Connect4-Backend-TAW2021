@@ -7,7 +7,7 @@ import {io} from "../index";
 
 export let userRouter = express.Router();
 
-
+// Get all the users
 userRouter.get("/", auth, (req, res, next) => {
     user.getModel().find({}, {digest: 0, salt: 0})
         .then((users) => {
@@ -66,6 +66,7 @@ interface UpdateUserData {
 
 
 userRouter.route("/:user_id")
+    // Get the requested user
     .get(auth, (req, res, next)=> {
         if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
             // @ts-ignore
@@ -73,11 +74,11 @@ userRouter.route("/:user_id")
                 if(user){
                     return res.status(200).json(user);
                 }else{
-                    return next({status:404, error: true, errormessage:"User not found"});
+                    return next({status:404, error: true, message:"User not found"});
                 }
             }).catch((e) => {
                 console.error(e);
-                return next({status:404, error: true, errormessage:"User not found"});
+                return next({status:404, error: true, message:"User not found"});
             });
         }else{
             if(req.user && req.user.id === req.params.user_id){
@@ -86,14 +87,15 @@ userRouter.route("/:user_id")
                     if(user){
                         return res.status(200).json(user);
                     }else{
-                        return next({status:404, error: true, errormessage:"User not found"});
+                        return next({status:404, error: true, message:"User not found"});
                     }
                 })
             }else{
-                return next({status:403, error: true, errormessage:"You are not authorized to access this resourc"});
+                return next({status:403, error: true, message:"You are not authorized to access this resourc"});
             }
         }
     })
+    // Update a user FIXME: remove username update since this should invalidate JWT
     .put(auth, (req, res, next) => {
         // Incoming parameters need to be filtered before inserting into the database to avoid unwanted changes (like digest or salt)
         let update: UpdateUserData = {};
@@ -128,6 +130,7 @@ userRouter.route("/:user_id")
             }
         }
     })
+    // Delete a user FIXME: when a user it should be removed from friends
     .delete(auth, (req, res, next) => {
         // @ts-ignore Mongoose can do the correct cast by itself
         user.getModel().findOne({_id: req.params.user_id}).then((target) => {

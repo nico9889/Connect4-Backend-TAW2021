@@ -11,8 +11,4 @@ export class InMemorySessionStore{
     saveSession(id: string, online: boolean) {
         this.sessions.set(id, online);
     }
-
-    findAllSessions() {
-        return [...this.sessions.values()];
-    }
 }

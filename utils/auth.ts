@@ -7,6 +7,7 @@ import {User} from "../models/User";
 // @ts-ignore
 export let auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
 
+// User information contained into JWT token
 declare global {
     namespace Express {
         interface User {
@@ -18,6 +19,7 @@ declare global {
     }
 }
 
+// Setting passport to use BasicHTTP Authentication to authenticate the users
 passport.use(new passportHTTP.BasicStrategy(
     function (username, password, done) {
         console.log("New login attempt from " + username);

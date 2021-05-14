@@ -1,31 +1,47 @@
+// HTTP Server
 import http = require('http')
 
+// Mongoose
 import mongoose = require('mongoose');
 
-import {Server} from 'socket.io';
+// Express
 import express = require('express');
+
+// Express Middleware
 import cors = require('cors');
 
-import {Role} from './models/User';
+// Socket.io
+import {Server} from 'socket.io';
+
+// User model
 import * as user from './models/User';
 
+// Routers
 import {userRouter} from './routers/user_router'
 import {authRouter} from "./routers/auth_router";
-import {NextFunction} from "express";
 import {leaderboardRouter} from "./routers/leaderboard_router";
 import {notificationsRouter} from "./routers/notifications_router";
 import {friendRouter} from "./routers/friend_router";
-import {DefaultEventsMap} from 'socket.io/dist/typed-events';
-import {Socket} from "socket.io/dist/socket";
-import {authorize} from "@thream/socketio-jwt";
-import {InMemorySessionStore} from './utils/session';
 import {messageRouter} from "./routers/message_route";
 import {gameRouter} from "./routers/game_router";
 
+// Socket.io authentication
+import {authorize} from "@thream/socketio-jwt";
+import {InMemorySessionStore} from './utils/session';
+
+// Types needed by TypeScript (strict mode)
+import {DefaultEventsMap} from 'socket.io/dist/typed-events';
+
+// First time admin random password creation
+import crypto = require('crypto');
+
+// Socket.io server
 export let io: Server<DefaultEventsMap, DefaultEventsMap>;
+// Socket.io SessionMap
 export const sessionStore = new InMemorySessionStore();
 
 let app = express();
+
 
 const hostname: string | undefined = undefined;
 const port: number = 8080;
@@ -45,19 +61,13 @@ app.use("/v1/game", gameRouter);
 
 // Error handling middleware
 // @ts-ignore
-app.use((err: ServerError, req: Request, res: Response, next: NextFunction) => {
+app.use((err: ServerError, req: Request, res: Response) => {
     console.log("Request error: " + JSON.stringify(err));
     console.log(err);
     let statusCode = err.status || 500;
     // @ts-ignore
     res.status(statusCode).json({statusCode: statusCode, error: true, message: err.message});
 });
-
-// This interface is needed to avoid TypeScript Type Error because of the missing properties on Socket Type
-interface AuthSocket extends Socket {
-    sessionID?: string,
-    userID?: string,
-}
 
 // Mongoose settings to avoid deprecation warning
 mongoose.set('useNewUrlParser', true);
@@ -72,16 +82,16 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             return user.getModel().findOne({username: "admin"});
         }
     ).then(
-    (doc) => {  // If we don't have any admin in the database we create one with a random password
-        if (!doc) {
+    (admin) => {  // If we don't have any admin in the database we create one with a random password
+        if (!admin) {
             console.log("Creating admin user");
             let u = user.newUser({
                 username: "admin",
                 enabled: true
             });
-            u.setRole(Role.ADMIN);
-            u.setRole(Role.MODERATOR);
-            let r = Math.random().toString(36).substring(7);
+            u.setRole(user.Role.ADMIN);
+            u.setRole(user.Role.MODERATOR);
+            let r = crypto.randomBytes(20).toString('hex');
             console.log("Administrator password: " + r + "\nChange it asap!");
             u.setPassword(r);
             return u.save();
@@ -89,14 +99,22 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
     })
     .then(      // Once database is initialized we start the HTTP server
         () => {
+            // Creating new HTTP server
             let server = http.createServer(app);
-            server.listen(port, "0.0.0.0", () => console.log("HTTP Server started on port 8080"));
+
+            // Make HTTP server to listen on the specified port and hostname. If hostname is missing then it's listening
+            // from every connection
+            server.listen(port, (hostname) ? hostname: "0.0.0.0", () => console.log("HTTP Server started on port 8080"));
+
+            // Creating new socket.io server. CORS options need to be specified from v3.0
             io = new Server(server, {
                 cors: {
-                    origin: hostname || '*',
+                    origin: (hostname) ? [hostname] : '*',
                 }
             });
 
+
+            // Configure Socket.io to authenticate the user with the token provided by ExpressJS-JWT
             io.use(authorize({
                 algorithms: ['HS256'],
                 // @ts-ignore
@@ -110,11 +128,17 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                 }
             }))
 
+            // Once a user connect it will be put on a room with its on Unique ID as a name.
+            // The server will send the user specific notification on this room.
+            // All the friends already connected will be notified that a friend has connected/disconnected, and they
+            // have to refresh the friends list
             io.on('connection', (socket => {
                 sessionStore.saveSession(socket.user.id, true);
                 io.emit('broadcast','users');
                 socket.join(socket.user.id);
-                user.getModel().findOne({_id: socket.user.id}).then((user) => {
+
+                // Check the user's friends and notify them if they are online
+                user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
                     if(user){
                         for(let friend of user.friends){
                             if(sessionStore.findSession(friend.toString())){
@@ -123,9 +147,10 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                         }
                     }
                 })
+
                 socket.on('disconnect', (listener) => {
                     if(socket.user) {
-                        user.getModel().findOne({_id: socket.user.id}).then((user) => {
+                        user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
                             if (user) {
                                 for (let friend of user.friends) {
                                     if (sessionStore.findSession(friend.toString())) {
@@ -138,10 +163,6 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                     sessionStore.saveSession(socket.user.id, false);
                 })
             }));
-
-            if (!hostname) {
-                console.log("Hostname is undefined. Using CORS Origin = '*'.")
-            }
         })
     .catch(
         (err) => {
