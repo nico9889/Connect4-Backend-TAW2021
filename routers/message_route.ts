@@ -5,11 +5,13 @@ import * as user from '../models/User';
 import * as message from '../models/Message'
 
 import {Role} from "../models/User";
-import {io} from "../index";
+import {io, sessionStore} from "../index";
+import {newNotification, Type} from "../models/Notification";
 
 export let messageRouter = express.Router();
 
 messageRouter.route('/:id')
+    // Get private messages
     .get(auth, (req, res, next) => {
         if (req.user) {
             // @ts-ignore
@@ -42,6 +44,7 @@ messageRouter.route('/:id')
             })
         }
     })
+    // Send a new private message
     .post(auth, (req, res, next) => {
         if (req.user) {
             if (req.body.message.content !== '') {
@@ -58,6 +61,10 @@ messageRouter.route('/:id')
                                     io.to(req.params.id).emit('private message', {
                                         from: req.user.id
                                     })
+                                }
+                                newNotification(Type.PRIVATE_MESSAGE, req.user, req.params.id, 10);
+                                if(sessionStore.findSession(req.params.id)){
+                                    io.to(req.params.id).emit('notification update', {});
                                 }
                                 return res.status(200).json({error: false, errormessage: ''});
                             }).catch((err) => {

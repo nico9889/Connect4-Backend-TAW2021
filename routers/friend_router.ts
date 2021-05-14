@@ -7,18 +7,21 @@ import {io, sessionStore} from "../index";
 
 export let friendRouter = express.Router();
 
+
 friendRouter.route("/")
+    // Get from the database the friends details of the current user
     .get(auth, (req, res, next) => {
         if (req.user) {
             // @ts-ignore
             user.getModel().findOne({_id: req.user.id}).then((current_user) => {
                 if (current_user) {
                     user.getModel().find({
-                        _id: {
-                            $in:
-                            current_user.friends
-                        }
-                    }).then((friends) => {
+                            _id: {
+                                $in:
+                                current_user.friends
+                            }
+                        },
+                        {_id:1, username: 1, avatar: 1}).then((friends) => {
                         let out: Friend[] = [];
                         friends.forEach((friend) => {
                             let online = sessionStore.findSession(friend._id.toString());
@@ -35,7 +38,7 @@ friendRouter.route("/")
                         return next({
                             status: 500,
                             error: true,
-                            errormessage: "Generic error occurred while retrieving friends"
+                            message: "Generic error occurred while retrieving friends"
                         });
                     })
                 }
@@ -44,57 +47,62 @@ friendRouter.route("/")
                 return next({
                     status: 500,
                     error: true,
-                    errormessage: "Generic error occurred while retrieving friends"
+                    message: "Generic error occurred while retrieving friends"
                 });
             })
         }
-    }).post(auth, (req, res, next) => {
-    if (req.user) {
-        // @ts-ignore Mongoose is casting automatically
-        user.getModel().findOne({username: req.body.username}).then((receiver) => {
-            if (req.body.request == true && req.user !== undefined && receiver && receiver._id.toString() !== req.user.id) {
-                newNotification(Type.FRIEND_REQUEST, req.user, receiver._id.toString(), 10);
-                io.to(receiver._id.toString()).emit("notification update");
-                return res.status(200).json({error: false, errormessage: ""});
-            } else {
-                return next({status: 500, error: true, errormessage: "Invalid request"});
-            }
-        }).catch((e) => {
-            console.error(e);
-            return next({status: 404, error: true, errormessage: "User not found"});
-        })
-    }
-}).put(auth, (req, res, next) => {
-    //@ts-ignore
-    if (req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver) {
-        if (checkSentNotification(req.body.notification)) {
-            if (req.body.accept === true) {
-                user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
-                    user.getModel().findOne({_id: req.body.notification.receiver}).then((receiver) => {
-                        if (sender && receiver) {
-                            if (!sender.friends.includes(receiver._id) && !receiver.friends.includes(sender._id)) {
-                                sender.friends.push(receiver._id);
-                                receiver.friends.push(sender._id);
-                                sender.save();
-                                receiver.save();
-                                return res.status(200).json({error: false, errormessage: ""});
-                            } else {
-                                return next({status: 500, error: true, errormessage: "You are already friend!"})
-                            }
-                        } else {
-                            return next({status: 500, error: true, errormessage: "Invalid or expired request"});
-                        }
-                    });
-                });
-            } else {
-                return res.status(200).json({error: false, errormessage: ""});
-            }
-        } else {
-            return next({status: 500, error: true, errormessage: "Invalid or expired request"});
+    })
+    // Create a new Friend request searching the user by name
+    .post(auth, (req, res, next) => {
+        if (req.user) {
+            // @ts-ignore Mongoose is casting automatically
+            user.getModel().findOne({username: req.body.username}).then((receiver) => {
+                if (req.body.request == true && req.user !== undefined && receiver && receiver._id.toString() !== req.user.id) {
+                    newNotification(Type.FRIEND_REQUEST, req.user, receiver._id.toString(), 10);
+                    io.to(receiver._id.toString()).emit("notification update");
+                    return res.status(200).json({error: false, message: ""});
+                } else {
+                    return next({status: 500, error: true, message: "Invalid request"});
+                }
+            }).catch((e) => {
+                console.error(e);
+                return next({status: 404, error: true, message: "User not found"});
+            })
         }
-    }
-})
+    })
+    // Accept or refuse the friend request. If accepted the users (sender/receiver of the request) will be added to the friends list each other
+    .put(auth, (req, res, next) => {
+        //@ts-ignore
+        if (req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver) {
+            if (checkSentNotification(req.user, req.body.notification)) {
+                if (req.body.accept === true) {
+                    user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
+                        user.getModel().findOne({_id: req.body.notification.receiver}).then((receiver) => {
+                            if (sender && receiver) {
+                                if (!sender.friends.includes(receiver._id) && !receiver.friends.includes(sender._id)) {
+                                    sender.friends.push(receiver._id);
+                                    receiver.friends.push(sender._id);
+                                    sender.save();
+                                    receiver.save();
+                                    return res.status(200).json({error: false, message: ""});
+                                } else {
+                                    return next({status: 500, error: true, message: "You are already friend!"})
+                                }
+                            } else {
+                                return next({status: 500, error: true, message: "Invalid or expired request"});
+                            }
+                        });
+                    });
+                } else {
+                    return res.status(200).json({error: false, message: ""});
+                }
+            } else {
+                return next({status: 500, error: true, message: "Invalid or expired request"});
+            }
+        }
+    })
 
+// Send back the friend details only if the user asking if friend of the user asked for
 friendRouter.route("/:id")
     .get(auth, (req, res, next) => {
         if (req.user) {
@@ -116,25 +124,26 @@ friendRouter.route("/:id")
                                 };
                                 return res.status(200).json(friend);
                             } else {
-                                return next({status: 500, error: true, errormessage: "Generic error"});
+                                return next({status: 500, error: true, message: "Generic error"});
                             }
                         })
                     } else {
-                        return next({status: 403, error: true, errormessage: "User is not your friend"});
+                        return next({status: 403, error: true, message: "User is not your friend"});
                     }
                 } else {
-                    return next({status: 500, error: true, errormessage: "Generic error"});
+                    return next({status: 500, error: true, message: "Generic error"});
                 }
             }).catch(
                 (err) => {
                     console.error(err);
-                    return next({status: 500, error: true, errormessage: "Generic error"});
+                    return next({status: 500, error: true, message: "Generic error"});
                 }
             )
         } else {
-            return next({status: 500, error: true, errormessage: "Generic error"});
+            return next({status: 500, error: true, message: "Generic error"});
         }
     })
+    // TODO: remove friendship
     .delete(auth, (req, res, next) => {
 
     })
