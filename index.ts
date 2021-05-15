@@ -59,9 +59,8 @@ app.use("/v1/friendship", friendRouter);
 app.use("/v1/messages", messageRouter);
 app.use("/v1/game", gameRouter);
 
-// Error handling middleware
 // @ts-ignore
-app.use((err: ServerError, req: Request, res: Response) => {
+app.use((err, req, res, _) => {
     console.log(err);
     const statusCode = err.status || 500;
     // @ts-ignore
