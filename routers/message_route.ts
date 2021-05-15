@@ -25,7 +25,15 @@ messageRouter.route('/:id')
                             sender: {$in: [req.user.id, req.params.id]},
                             receiver: {$in: [req.user.id, req.params.id]},
                         }).then((messages) => {
-                            return res.status(200).json(messages);
+                            if(messages) {
+                                return res.status(200).json(messages);
+                            }else{
+                                return next({
+                                    status: 500,
+                                    error: true,
+                                    errormessage: 'Error while retrieving the messages'
+                                });
+                            }
                         }).catch((err) => {
                             console.log(err);
                             return next({
