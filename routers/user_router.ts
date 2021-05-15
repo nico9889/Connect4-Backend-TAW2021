@@ -3,7 +3,6 @@ import express = require('express');
 import * as user from '../models/User';
 import {auth} from '../utils/auth'
 import {Role} from "../models/User";
-import {io} from "../index";
 
 export let userRouter = express.Router();
 
@@ -42,7 +41,7 @@ function updateUser(id: string, data: any, req, res, next) {
                         }
 
                     } else {
-                        return next({status: 500, error: true, message: "An error has occured"});
+                        return next({status: 500, error: true, message: "An error has occurred"});
                     }
                 })
             } else {
@@ -54,7 +53,7 @@ function updateUser(id: string, data: any, req, res, next) {
             if (e.code === 11000) {
                 return next({status: 500, error: true, message: "Username already exists"});
             }
-            return next({status: 500, error: true, message: "An error has occured"});
+            return next({status: 500, error: true, message: "An error has occurred"});
         });
 }
 
@@ -92,7 +91,7 @@ userRouter.route("/:user_id")
                     }
                 })
             }else{
-                return next({status:403, error: true, message:"You are not authorized to access this resourc"});
+                return next({status:403, error: true, message:"You are not authorized to access this resource"});
             }
         }
     })
@@ -158,6 +157,6 @@ userRouter.route("/:user_id")
             }
         }).catch((e) => {
             console.error(e);
-            return next({status: 500, error: true, message: "An error has occured"});
+            return next({status: 500, error: true, message: "An error has occurred"});
         });
     });

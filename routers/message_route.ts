@@ -64,7 +64,7 @@ messageRouter.route('/:id')
                         })
                         if (req.user && (dest || user.checkRoles(req.user, [Role.ADMIN, Role.MODERATOR]))) {
                             const mess = message.newMessage(req.user.id, req.params.id, req.body.message.content);
-                            mess.save().then((message) => {
+                            mess.save().then(() => {
                                 if(req.user) {
                                     io.to(req.params.id).emit('private message', {
                                         from: req.user.id

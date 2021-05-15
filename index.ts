@@ -62,9 +62,8 @@ app.use("/v1/game", gameRouter);
 // Error handling middleware
 // @ts-ignore
 app.use((err: ServerError, req: Request, res: Response) => {
-    console.log("Request error: " + JSON.stringify(err));
     console.log(err);
-    let statusCode = err.status || 500;
+    const statusCode = err.status || 500;
     // @ts-ignore
     res.status(statusCode).json({statusCode: statusCode, error: true, message: err.message});
 });
@@ -148,7 +147,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                     }
                 })
 
-                socket.on('disconnect', (listener) => {
+                socket.on('disconnect', (_) => {
                     if(socket.user) {
                         user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
                             if (user) {
