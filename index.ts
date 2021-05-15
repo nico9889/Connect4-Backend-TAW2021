@@ -133,7 +133,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             // All the friends already connected will be notified that a friend has connected/disconnected, and they
             // have to refresh the friends list
             io.on('connection', (socket => {
-                sessionStore.saveSession(socket.user.id, true);
+                sessionStore.saveSession(socket.user.id, {online:true, game:''});
                 io.emit('broadcast','users');
                 socket.join(socket.user.id);
 
@@ -160,7 +160,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                             }
                         })
                     }
-                    sessionStore.saveSession(socket.user.id, false);
+                    sessionStore.saveSession(socket.user.id, {online:false, game:''});
                 })
             }));
         })

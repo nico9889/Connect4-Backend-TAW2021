@@ -162,11 +162,20 @@ gameRouter.route('/invite')
                                         playerOneTurn: true,
                                         spectators: []
                                     });
-                                    if (sessionStore.findSession(req.body.notification.receiver.sender)) {
-                                        io.to(playerTwo._id.toString()).emit("game new", {
+                                    if (sessionStore.findSession(req.body.notification.sender)) {
+                                        io.to(req.body.notification.sender).emit("game new", {
                                             id: newGame._id.toString()
                                         })
                                     }
+                                    io.to(req.body.notification.receiver).to(req.body.notification.sender).socketsJoin(newGame._id.toString());
+                                    sessionStore.saveSession(req.body.notification.receiver, {
+                                        online: true,
+                                        game: newGame.id
+                                    });
+                                    sessionStore.saveSession(req.body.notification.sender, {
+                                        online: true,
+                                        game: newGame.id
+                                    });
                                     return res.status(200).json(newGame);
                                 } else {
                                     return next({status: 404, error: true, message: "User not found"});
@@ -192,6 +201,37 @@ gameRouter.route('/invite')
             return next({status: 500, error: true, message: "Invalid request"});
         }
     })
+
+
+gameRouter.route('/:spectate_id/spectate')
+    .put(auth, (req, res, next) => {
+        if (req.user) {
+            const gameInfo = games.get(req.params.spectate_id);
+            if (gameInfo) {
+                if (req.body.follow === true) {
+                    if (!gameInfo.spectators.includes(req.user.id)) {
+                        gameInfo.spectators.push(req.user.id);
+                    }
+                    console.log("Registering follower to game: " + gameInfo.game._id.toString());
+                    io.to(req.user.id).socketsJoin(gameInfo.game._id.toString());
+                } else {
+                    if (gameInfo.spectators.includes(req.user.id)) {
+                        gameInfo.spectators = gameInfo.spectators.filter((spectator) => {
+                            // @ts-ignore
+                            return spectator == req.user.id
+                        });
+                    }
+                    io.to(req.user.id).socketsLeave(gameInfo.game._id.toString());
+                }
+                return res.status(200).json({error:false, message:''});
+            } else {
+                return next({status: 404, error: true, message: "Game not found"});
+            }
+        } else {
+            return next({status: 500, error: true, message: "Invalid request"});
+        }
+    })
+
 
 gameRouter.route('/:id')
     // Get the status of the match
@@ -220,101 +260,96 @@ gameRouter.route('/:id')
     })
     // Update the board making a move
     .put(auth, (req, res, next) => {
-    if (req.user) {
-        const gameInfo = games.get(req.params.id);
-        if (gameInfo) {
-            let currentPlayer: string;
-            let opponent: string;
-            let coin: Coin;
-            if (gameInfo.playerOneTurn) {
-                currentPlayer = gameInfo.game.playerOne.toString();
-                opponent = gameInfo.game.playerTwo.toString();
-                coin = Coin.Red;
-            } else {
-                currentPlayer = gameInfo.game.playerTwo.toString();
-                opponent = gameInfo.game.playerOne.toString();
-                coin = Coin.Yellow;
-            }
-            if (!gameInfo.game.winner && !gameInfo.game.ended) {
-                if (req.user.id === currentPlayer) {
-                    if (req.body.x >= 0) {
-                        if (gameInfo.board.put(req.body.x, coin)) {
-                            let loserId;
-                            gameInfo.playerOneTurn = !gameInfo.playerOneTurn;
-                            if(!gameInfo.game.ended){
-                                if (gameInfo.board.checkWinner() == Coin.Red) {
-                                    gameInfo.game.winner = gameInfo.game.playerOne;
-                                    loserId = gameInfo.game.playerTwo;
-                                    gameInfo.game.winnerName = gameInfo.game.playerOneName;
-                                } else if (gameInfo.board.checkWinner() == Coin.Yellow) {
-                                    gameInfo.game.winner = gameInfo.game.playerTwo;
-                                    loserId = gameInfo.game.playerOne;
-                                    gameInfo.game.winnerName = gameInfo.game.playerTwoName;
-                                } else {
-                                    if (gameInfo.board.getRemainingMoves() === 0) {
-                                        gameInfo.game.winnerName = 'Tie!';
+        if (req.user) {
+            const gameInfo = games.get(req.params.id);
+            if (gameInfo) {
+                let currentPlayer: string;
+                let coin: Coin;
+                if (gameInfo.playerOneTurn) {
+                    currentPlayer = gameInfo.game.playerOne.toString();
+                    coin = Coin.Red;
+                } else {
+                    currentPlayer = gameInfo.game.playerTwo.toString();
+                    coin = Coin.Yellow;
+                }
+                if (!gameInfo.game.winner && !gameInfo.game.ended) {
+                    if (req.user.id === currentPlayer) {
+                        if (req.body.x >= 0) {
+                            if (gameInfo.board.put(req.body.x, coin)) {
+                                let loserId;
+                                gameInfo.playerOneTurn = !gameInfo.playerOneTurn;
+                                if (!gameInfo.game.ended) {
+                                    if (gameInfo.board.checkWinner() == Coin.Red) {
+                                        gameInfo.game.winner = gameInfo.game.playerOne;
+                                        loserId = gameInfo.game.playerTwo;
+                                        gameInfo.game.winnerName = gameInfo.game.playerOneName;
+                                    } else if (gameInfo.board.checkWinner() == Coin.Yellow) {
+                                        gameInfo.game.winner = gameInfo.game.playerTwo;
+                                        loserId = gameInfo.game.playerOne;
+                                        gameInfo.game.winnerName = gameInfo.game.playerTwoName;
+                                    } else {
+                                        if (gameInfo.board.getRemainingMoves() === 0) {
+                                            gameInfo.game.winnerName = 'Tie!';
+                                        }
+                                    }
+                                    if (gameInfo.game.winner && loserId) {
+                                        gameInfo.game.board = gameInfo.board.get();
+                                        gameInfo.game.ended = new Date();
+                                        gameInfo.game.save();
+                                        // @ts-ignore
+                                        user.getModel().findOne({_id: gameInfo.game.winner}).then((winner) => {
+                                            if (winner) {
+                                                winner.victories += 1;
+                                                winner.save();
+                                            }
+                                        });
+                                        // @ts-ignore
+                                        user.getModel().findOne({_id: loserId}).then((loser) => {
+                                            if (loser) {
+                                                loser.defeats += 1;
+                                                loser.save();
+                                            }
+                                        });
                                     }
                                 }
-                                if (gameInfo.game.winner && loserId) {
-                                    gameInfo.game.board = gameInfo.board.get();
-                                    gameInfo.game.ended = new Date();
-                                    gameInfo.game.save();
-                                    // @ts-ignore
-                                    user.getModel().findOne({_id: gameInfo.game.winner}).then((winner) => {
-                                        if (winner) {
-                                            winner.victories += 1;
-                                            winner.save();
-                                        }
-                                    });
-                                    // @ts-ignore
-                                    user.getModel().findOne({_id: loserId}).then((loser) => {
-                                        if (loser) {
-                                            loser.defeats += 1;
-                                            loser.save();
-                                        }
-                                    });
-                                }
+                                io.to(gameInfo.game.id.toString()).emit('game update');
+                                return res.status(200).json({
+                                    board: gameInfo.board,
+                                    playerOne: gameInfo.game.playerOne,
+                                    playerOneName: gameInfo.game.playerOneName,
+                                    playerTwo: gameInfo.game.playerTwo,
+                                    playerTwoName: gameInfo.game.playerTwoName,
+                                    winner: gameInfo.game.winner,
+                                    winnerName: gameInfo.game.winnerName,
+                                    playerOneTurn: gameInfo.playerOneTurn,
+                                    spectators: gameInfo.spectators,
+                                    ended: gameInfo.game.ended
+                                })
+                            } else {
+                                return next({status: 500, error: true, message: "Invalid move"})
                             }
-                            if (sessionStore.findSession(opponent)) {
-                                io.to(opponent).emit('game update');
-                            }
-                            return res.status(200).json({
-                                board: gameInfo.board,
-                                playerOne: gameInfo.game.playerOne,
-                                playerOneName: gameInfo.game.playerOneName,
-                                playerTwo: gameInfo.game.playerTwo,
-                                playerTwoName: gameInfo.game.playerTwoName,
-                                winner: gameInfo.game.winner,
-                                winnerName: gameInfo.game.winnerName,
-                                playerOneTurn: gameInfo.playerOneTurn,
-                                spectators: gameInfo.spectators,
-                                ended: gameInfo.game.ended
-                            })
-                        } else {
-                            return next({status: 500, error: true, message: "Invalid move"})
                         }
+                    } else {
+                        return next({
+                            status: 403,
+                            error: true,
+                            message: "You cannot play this game, or it's not your turn"
+                        })
                     }
                 } else {
-                    return next({
-                        status: 403,
-                        error: true,
-                        message: "You cannot play this game, or it's not your turn"
+                    return res.status(200).json({
+                        board: gameInfo.board,
+                        playerOne: gameInfo.game.playerOne,
+                        playerTwo: gameInfo.game.playerTwo,
+                        winner: gameInfo.game.winner,
+                        playerOneTurn: gameInfo.playerOneTurn,
+                        spectators: gameInfo.spectators
                     })
                 }
             } else {
-                return res.status(200).json({
-                    board: gameInfo.board,
-                    playerOne: gameInfo.game.playerOne,
-                    playerTwo: gameInfo.game.playerTwo,
-                    winner: gameInfo.game.winner,
-                    playerOneTurn: gameInfo.playerOneTurn,
-                    spectators: gameInfo.spectators
-                })
+                return next({status: 404, error: true, message: "Game not found"});
             }
         } else {
-            return next({status: 404, error: true, message: "Game not found"});
+            return next({status: 500, error: true, message: "Invalid request"});
         }
-    } else {
-        return next({status: 500, error: true, message: "Invalid request"});
-    }
-});
+    });

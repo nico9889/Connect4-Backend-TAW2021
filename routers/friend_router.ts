@@ -24,11 +24,13 @@ friendRouter.route("/")
                         {_id:1, username: 1, avatar: 1}).then((friends) => {
                         let out: Friend[] = [];
                         friends.forEach((friend) => {
-                            let online = sessionStore.findSession(friend._id.toString());
+                            let session = sessionStore.findSession(friend._id.toString());
+
                             out.push({
                                 id: friend._id.toString(),
                                 username: friend.username,
-                                online: online,
+                                online: session?.online || false,
+                                game: session?.game || '',
                                 avatar: friend.avatar
                             });
                         })
@@ -115,11 +117,12 @@ friendRouter.route("/:id")
                     if (friendId) {
                         user.getModel().findOne({_id: friendId}).then((user) => {
                             if (user) {
-                                const online = sessionStore.findSession(user._id.toString());
+                                const session = sessionStore.findSession(user._id.toString());
                                 const friend: Friend = {
                                     id: user.id,
                                     username: user.username,
-                                    online: online,
+                                    online: session?.online || false,
+                                    game: session?.game || '',
                                     avatar: user.avatar
                                 };
                                 return res.status(200).json(friend);

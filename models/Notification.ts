@@ -1,3 +1,5 @@
+import crypto = require('crypto');
+
 export enum Type {
     ERROR,
     FRIEND_REQUEST,
@@ -5,7 +7,9 @@ export enum Type {
     PRIVATE_MESSAGE
 }
 
+
 class Notification {
+    uid: string;
     type: Type;
     sender: string;
     senderUsername: string;
@@ -13,6 +17,7 @@ class Notification {
     expiry: Date;
 
     constructor(type: Type, senderUser: Express.User, receiverUser: string, expiry: number) {
+        this.uid = crypto.randomBytes(20).toString('hex');
         this.type = type;
         this.sender = senderUser.id;
         this.senderUsername = senderUser.username;
@@ -21,12 +26,9 @@ class Notification {
     }
 }
 
-function equals(not1: Notification, not2: Notification): boolean{
-    return new Date(not1.expiry).getTime() === new Date(not2.expiry).getTime() && not1.sender === not2.sender && not1.receiver === not2.receiver && not1.type === not2.type;
-}
-
 let notifications: Map<string, Notification[]> = new Map();
 let sentNotifications: Map<string, Notification[]> = new Map();
+
 
 export function newNotification(type: Type, senderUser: Express.User | undefined, receiverUser: string, expiry: number): void {
     if(senderUser) {
@@ -41,15 +43,25 @@ export function newNotification(type: Type, senderUser: Express.User | undefined
     }
 }
 
+// Get all the user notifications that has to be sent to the users.
+// Preserving game notification and friend notification to check later if they have been accepted
 export function getNotifications(user: Express.User): Notification[] {
-    let userNotifications = notifications.get(user.id);
+    const userNotifications = notifications.get(user.id);
     if(userNotifications){
+        // We need to preserve only the invites. Preserving chat messages notification is useless.
+        const invites = userNotifications.filter((not) => {
+           return not.type != Type.PRIVATE_MESSAGE;
+        });
         if(sentNotifications.has(user.id)){
+            console.log("User exists, adding notification");
+            const userSentNotification = sentNotifications.get(user.id);
             // @ts-ignore can't be undefined since I checked before if it has a value
-            sentNotifications.get(user.id).concat(userNotifications);
+            const concat = userSentNotification.concat(invites)
+            sentNotifications.set(user.id, concat);
         }else{
-            let sentUserNotifications: Notification[] = [...userNotifications];
-            sentUserNotifications.concat(userNotifications);
+            console.log("User do not exists, adding user");
+            const sentUserNotifications: Notification[] = [...invites];
+            sentUserNotifications.concat(invites);
             sentNotifications.set(user.id, sentUserNotifications);
         }
         notifications.set(user.id, []);
@@ -64,10 +76,10 @@ export function checkSentNotification(user: Express.User, notification: Notifica
     let userSentNotifications = sentNotifications.get(user.id);
     if(userSentNotifications){
         let result = userSentNotifications.find((not) => {
-            return equals(not, notification);
+            return not.uid === notification.uid;
         });
         let notExpiredNotifications = userSentNotifications.filter((not) => {
-            return new Date(notification.expiry) < new Date || !equals(not, notification);
+            return new Date(notification.expiry) < new Date && not.uid !== notification.uid;
         })
         sentNotifications.set(user.id, notExpiredNotifications);
         console.log(result);
