@@ -29,22 +29,24 @@ function updateUser(id: string, data: any, req, res, next) {
     // @ts-ignore Mongoose can do the correct cast by itself
     user.getModel().updateOne({_id: id}, data)
         .then(() => {
-            if (data.oldPassword && data.newPassword) {
+            if (data.oldPassword && data.newPassword && /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}/.test(data.newPassword)) {
                 // @ts-ignore
                 user.getModel().findOne({_id: req.params.user_id}).then((u) => {
                     if (u) {
                         if(u.validatePassword(data.oldPassword)) {
                             u.setPassword(data.newPassword);
                             u.save();
+                            return res.status(200).json({error: false, message: ""});
+                        }else{
+                            return next({status: 500, error: true, message: "Invalid old password"});
                         }
-                        return res.status(200).json({error: false, message: ""});
+
                     } else {
                         return next({status: 500, error: true, message: "An error has occured"});
                     }
                 })
             } else {
-                io.emit('broadcast', 'users');
-                return res.status(200).json({error: false, message: ""});
+                return next({status: 500, error: true, message: "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"});
             }
         })
         .catch((e) => {
@@ -57,7 +59,6 @@ function updateUser(id: string, data: any, req, res, next) {
 }
 
 interface UpdateUserData {
-    username?: string,
     enabled?: string,
     avatar?: string,
     oldPassword?: string,
@@ -99,9 +100,6 @@ userRouter.route("/:user_id")
     .put(auth, (req, res, next) => {
         // Incoming parameters need to be filtered before inserting into the database to avoid unwanted changes (like digest or salt)
         let update: UpdateUserData = {};
-        if (req.body.username) {
-            update.username = req.body.username;
-        }
         if (req.body.enabled !== undefined && req.body.enabled !== null) {
             update.enabled = req.body.enabled;
         }
