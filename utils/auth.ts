@@ -2,10 +2,20 @@ import jwt = require("express-jwt");
 export import passport = require('passport');
 import passportHTTP = require('passport-http');
 import * as user from '../models/User';
-import {User} from "../models/User";
+import {Role, User} from "../models/User";
 
 // @ts-ignore
 export let auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
+
+// @ts-ignore
+export let moderator = function (req, res, next) {
+    if (req.user &&
+        req.user.roles.includes(Role.MODERATOR) &&
+        req.user.last_password_change === req.user.registered_on) {
+        res.status(500).json({error: true, message: 'Change your password!'});
+    }
+    next();
+}
 
 // User information contained into JWT token
 declare global {
@@ -15,6 +25,8 @@ declare global {
             username: string,
             roles: string[],
             enabled: boolean,
+            last_password_change: Date,
+            registered_on: Date,
         }
     }
 }
@@ -33,14 +45,14 @@ passport.use(new passportHTTP.BasicStrategy(
                 // @ts-ignore
                 return done(null, false, {status: 500, error: true, message: "Invalid username"});
             }
-            if(user.enabled) {
+            if (user.enabled) {
                 if (user.validatePassword(password)) {
                     return done(null, user);
                 }
                 console.error("User attempted to login with wrong password");
                 // @ts-ignore
                 return done(null, false, {status: 500, error: true, message: "Invalid password"});
-            }else{
+            } else {
                 console.error("Disabled user tried to login");
                 // @ts-ignore
                 return done(null, false, {status: 500, error: true, message: "User not enabled"});

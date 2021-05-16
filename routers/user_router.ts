@@ -1,13 +1,13 @@
 import express = require('express');
 
 import * as user from '../models/User';
-import {auth} from '../utils/auth'
+import {auth, moderator} from '../utils/auth'
 import {Role} from "../models/User";
 
 export let userRouter = express.Router();
 
 // Get all the users
-userRouter.get("/", auth, (req, res, next) => {
+userRouter.get("/", auth, moderator, (req, res, next) => {
     user.getModel().find({}, {digest: 0, salt: 0})
         .then((users) => {
             if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
@@ -68,7 +68,7 @@ interface UpdateUserData {
 userRouter.route("/:user_id")
     // Get the requested user
     .get(auth, (req, res, next)=> {
-        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
+        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && req.user && req.user.registered_on !== req.user.last_password_change) {
             // @ts-ignore
             user.getModel().findOne({_id:req.params.user_id}, {digest: 0, salt: 0}).then((user)=>{
                 if(user){
@@ -111,7 +111,7 @@ userRouter.route("/:user_id")
         if (req.body.newPassword) {
             update.newPassword = req.body.newPassword;
         }
-        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
+        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && req.user && req.user.registered_on !== req.user.last_password_change) {
             return updateUser(req.params.user_id, update, req, res, next);
         } else {
             if(req.user) {
@@ -128,7 +128,7 @@ userRouter.route("/:user_id")
         }
     })
     // Delete a user FIXME: when a user it should be removed from friends
-    .delete(auth, (req, res, next) => {
+    .delete(auth, moderator, (req, res, next) => {
         // @ts-ignore Mongoose can do the correct cast by itself
         user.getModel().findOne({_id: req.params.user_id}).then((target) => {
             if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {

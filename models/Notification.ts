@@ -53,13 +53,11 @@ export function getNotifications(user: Express.User): Notification[] {
            return not.type != Type.PRIVATE_MESSAGE;
         });
         if(sentNotifications.has(user.id)){
-            console.log("User exists, adding notification");
             const userSentNotification = sentNotifications.get(user.id);
             // @ts-ignore can't be undefined since I checked before if it has a value
             const concat = userSentNotification.concat(invites)
             sentNotifications.set(user.id, concat);
         }else{
-            console.log("User do not exists, adding user");
             const sentUserNotifications: Notification[] = [...invites];
             sentUserNotifications.concat(invites);
             sentNotifications.set(user.id, sentUserNotifications);
@@ -82,7 +80,6 @@ export function checkSentNotification(user: Express.User, notification: Notifica
             return new Date(notification.expiry) < new Date && not.uid !== notification.uid;
         })
         sentNotifications.set(user.id, notExpiredNotifications);
-        console.log(result);
         return result !== undefined && new Date(notification.expiry) > new Date();
     }
     return false;

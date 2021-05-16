@@ -15,6 +15,7 @@ export interface User extends mongoose.Document {
     digest: string,                                 // Password digest
     enabled: boolean,
     last_password_change: Date,
+    registered_on: Date,
     victories: number,
     defeats: number,
     avatar: string,
@@ -67,6 +68,11 @@ let userSchema = new mongoose.Schema<User>({
     last_password_change: {
         type: mongoose.SchemaTypes.Date,
         required: false
+    },
+    registered_on: {
+        type: mongoose.SchemaTypes.Date,
+        required: true,
+        default: new Date()
     },
     victories: {
         type: mongoose.SchemaTypes.Number,

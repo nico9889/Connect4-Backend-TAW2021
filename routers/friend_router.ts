@@ -1,5 +1,5 @@
 import express = require('express');
-import {auth} from '../utils/auth'
+import {auth, moderator} from '../utils/auth'
 import {checkSentNotification, newNotification, Type} from "../models/Notification";
 import * as user from '../models/User';
 import {Friend} from "../models/User";
@@ -10,39 +10,46 @@ export let friendRouter = express.Router();
 
 friendRouter.route("/")
     // Get from the database the friends details of the current user
-    .get(auth, (req, res, next) => {
+    .get(auth, moderator, (req, res, next) => {
         if (req.user) {
             // @ts-ignore
             user.getModel().findOne({_id: req.user.id}).then((current_user) => {
                 if (current_user) {
                     user.getModel().find({
-                            _id: {
-                                $in:
-                                current_user.friends
-                            }
-                        },
-                        {_id:1, username: 1, avatar: 1}).then((friends) => {
-                        let out: Friend[] = [];
-                        friends.forEach((friend) => {
-                            let session = sessionStore.findSession(friend._id.toString());
+                        _id: {
+                            $in:
+                            current_user.friends
+                        }
+                    }, {_id: 1, username: 1, avatar: 1})
+                        .then((friends) => {
+                            let out: Friend[] = [];
+                            friends.forEach((friend) => {
+                                let session = sessionStore.findSession(friend._id.toString());
 
-                            out.push({
-                                id: friend._id.toString(),
-                                username: friend.username,
-                                online: session?.online || false,
-                                game: session?.game || '',
-                                avatar: friend.avatar
+                                out.push({
+                                    id: friend._id.toString(),
+                                    username: friend.username,
+                                    online: session?.online || false,
+                                    game: session?.game || '',
+                                    avatar: friend.avatar
+                                });
+                            })
+                            return res.status(200).json(out);
+                        })
+                        .catch((err) => {
+                            console.error(err);
+                            return next({
+                                status: 500,
+                                error: true,
+                                message: "Generic error occurred while retrieving friends"
                             });
                         })
-                        return res.status(200).json(out);
-                    }).catch((err) => {
-                        console.error(err);
-                        return next({
-                            status: 500,
-                            error: true,
-                            message: "Generic error occurred while retrieving friends"
-                        });
-                    })
+                } else {
+                    return next({
+                        status: 500,
+                        error: true,
+                        message: "Generic error occurred while retrieving friends"
+                    });
                 }
             }).catch((err) => {
                 console.error(err);
@@ -55,7 +62,7 @@ friendRouter.route("/")
         }
     })
     // Create a new Friend request searching the user by name
-    .post(auth, (req, res, next) => {
+    .post(auth, moderator, (req, res, next) => {
         if (req.user) {
             // @ts-ignore Mongoose is casting automatically
             user.getModel().findOne({username: req.body.username}).then((receiver) => {
@@ -73,7 +80,7 @@ friendRouter.route("/")
         }
     })
     // Accept or refuse the friend request. If accepted the users (sender/receiver of the request) will be added to the friends list each other
-    .put(auth, (req, res, next) => {
+    .put(auth, moderator, (req, res, next) => {
         //@ts-ignore
         if (req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver) {
             if (checkSentNotification(req.user, req.body.notification)) {
@@ -106,7 +113,7 @@ friendRouter.route("/")
 
 // Send back the friend details only if the user asking if friend of the user asked for
 friendRouter.route("/:id")
-    .get(auth, (req, res, next) => {
+    .get(auth, moderator, (req, res, next) => {
         if (req.user) {
             // @ts-ignore
             user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
@@ -147,6 +154,6 @@ friendRouter.route("/:id")
         }
     })
     // TODO: remove friendship
-    .delete(auth, (req, res, next) => {
+    .delete(auth, moderator, (req, res, next) => {
 
     })

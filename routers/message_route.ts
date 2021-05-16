@@ -1,5 +1,5 @@
 import express = require('express');
-import {auth} from '../utils/auth'
+import {auth, moderator} from '../utils/auth'
 
 import * as user from '../models/User';
 import * as message from '../models/Message'
@@ -12,7 +12,7 @@ export let messageRouter = express.Router();
 
 messageRouter.route('/:id')
     // Get private messages
-    .get(auth, (req, res, next) => {
+    .get(auth, moderator, (req, res, next) => {
         if (req.user) {
             // @ts-ignore
             user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
@@ -53,7 +53,7 @@ messageRouter.route('/:id')
         }
     })
     // Send a new private message
-    .post(auth, (req, res, next) => {
+    .post(auth, moderator, (req, res, next) => {
         if (req.user) {
             if (req.body.message.content !== '') {
                 // @ts-ignore

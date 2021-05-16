@@ -1,5 +1,5 @@
 import express = require('express');
-import {auth} from '../utils/auth'
+import {auth, moderator} from '../utils/auth'
 import {checkSentNotification, newNotification, Type} from "../models/Notification";
 import * as user from '../models/User';
 import * as game from '../models/Game';
@@ -112,7 +112,7 @@ const games: Map<String, GameInfo> = new Map<String, GameInfo>();
 
 gameRouter.route('/invite')
     // Create a new game invitation if current user and invited user are friends
-    .post(auth, (req, res, next) => {
+    .post(auth, moderator, (req, res, next) => {
         if (req.user) {
             // @ts-ignore Mongoose is casting automatically
             user.getModel().findOne({_id: req.user.id})
@@ -142,7 +142,7 @@ gameRouter.route('/invite')
         }
     })
     // Respond to the notification, if the invited user accepted a new game is created
-    .put(auth, (req, res, next) => {
+    .put(auth, moderator, (req, res, next) => {
         if (req.user && req.body.notification.receiver === req.user.id && req.body.notification.sender !== req.body.notification.receiver) {
             if (checkSentNotification(req.user, req.body.notification)) {
                 if (req.body.accept === true) {
@@ -236,7 +236,7 @@ gameRouter.route('/invite')
 
 
 gameRouter.route('/:spectate_id/spectate')
-    .put(auth, (req, res, next) => {
+    .put(auth, moderator, (req, res, next) => {
         if (req.user) {
             const gameInfo = games.get(req.params.spectate_id);
             if (gameInfo) {
@@ -266,7 +266,7 @@ gameRouter.route('/:spectate_id/spectate')
     })
 
 gameRouter.route('/:game_message_id/messages')
-    .get(auth, (req, res, next) => {
+    .get(auth, moderator, (req, res, next) => {
         if(req.user){
             const gameInfo = games.get(req.params.game_message_id);
             if(gameInfo){
@@ -305,7 +305,7 @@ gameRouter.route('/:game_message_id/messages')
             return next({status: 500, error:true, message: "Invalid request"});
         }
     })
-    .post(auth, (req, res, next) => {
+    .post(auth, moderator, (req, res, next) => {
         if(req.user){
             const gameInfo = games.get(req.params.game_message_id);
             if(gameInfo){
@@ -330,7 +330,7 @@ gameRouter.route('/:game_message_id/messages')
     })
 
 gameRouter.route('/:game_users_id/users')
-    .get(auth, (req, res, next) => {
+    .get(auth, moderator, (req, res, next) => {
         if(req.user){
             const gameInfo = games.get(req.params.game_users_id);
             if(gameInfo){
@@ -355,7 +355,7 @@ gameRouter.route('/:game_users_id/users')
 
 gameRouter.route('/:id')
     // Get the status of the match
-    .get(auth, (req, res, next) => {
+    .get(auth, moderator, (req, res, next) => {
         if (req.user) {
             const gameInfo = games.get(req.params.id);
             if (gameInfo) {
@@ -379,7 +379,7 @@ gameRouter.route('/:id')
         }
     })
     // Update the board making a move
-    .put(auth, (req, res, next) => {
+    .put(auth, moderator, (req, res, next) => {
         if (req.user) {
             const gameInfo = games.get(req.params.id);
             if (gameInfo) {
