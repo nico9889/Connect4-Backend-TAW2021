@@ -71,7 +71,7 @@ export function getNotifications(user: Express.User): Notification[] {
 
 // Check if the notification that the user is responding is a valid notification that has been sent
 export function checkSentNotification(user: Express.User, notification: Notification): boolean {
-    let userSentNotifications = sentNotifications.get(user.id);
+    const userSentNotifications = sentNotifications.get(user.id);
     if(userSentNotifications){
         let result = userSentNotifications.find((not) => {
             return not.uid === notification.uid;

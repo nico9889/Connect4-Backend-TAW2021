@@ -5,10 +5,10 @@ import * as user from '../models/User';
 import {Role, User} from "../models/User";
 
 // @ts-ignore
-export let auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
+export const auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
 
 // @ts-ignore
-export let moderator = function (req, res, next) {
+export const moderator = function (req, res, next) {
     if (req.user &&
         req.user.roles.includes(Role.MODERATOR) &&
         req.user.last_password_change === req.user.registered_on) {

@@ -45,7 +45,7 @@ export function getModel(): mongoose.Model<Message> {
 
 
 export function newMessage(sender: string, receiver: string, content: string) {
-    let _model = getModel();
+    const _model = getModel();
     return new _model({sender, receiver, content, date: new Date()});
 }
 

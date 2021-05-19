@@ -135,7 +135,7 @@ export function getModel(): mongoose.Model<User> {
 export function checkRoles(user: Express.User | undefined, roles: Role[]) {
     let allowed = false;
     if (user) {
-        let _usermodel = getModel();
+        const _usermodel = getModel();
         let u = new _usermodel(user);
         roles.forEach(item => {
             allowed ||= u.hasRole(item);
@@ -145,7 +145,7 @@ export function checkRoles(user: Express.User | undefined, roles: Role[]) {
 }
 
 export function newUser(data: { username: string, enabled: boolean }): User {
-    let _usermodel = getModel();
+    const _usermodel = getModel();
     return new _usermodel(data);
 }
 

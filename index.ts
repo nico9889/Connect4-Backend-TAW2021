@@ -34,7 +34,6 @@ import {DefaultEventsMap} from 'socket.io/dist/typed-events';
 
 // First time admin random password creation
 import crypto = require('crypto');
-import {Role} from "./models/User";
 
 // Socket.io server
 export let io: Server<DefaultEventsMap, DefaultEventsMap>;

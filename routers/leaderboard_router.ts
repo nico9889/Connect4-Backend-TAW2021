@@ -2,7 +2,7 @@ import express = require('express');
 
 import * as user from '../models/User';
 
-export let leaderboardRouter = express.Router();
+export const leaderboardRouter = express.Router();
 
 interface LeaderBoardUser {
     username: string,
@@ -13,10 +13,10 @@ interface LeaderBoardUser {
 
 // Get the public leaderboard
 leaderboardRouter.get("/", (req, res, next) => {
-    let leaderboard: LeaderBoardUser[] = [];
+    const leaderboard: LeaderBoardUser[] = [];
     user.getModel().find({}, {digest: 0, salt: 0})
         .then((users) => {
-            for (let user of users) {
+            for (const user of users) {
                 leaderboard.push({
                     username: user.username,
                     ratio: user.victories / (user.defeats + 1),

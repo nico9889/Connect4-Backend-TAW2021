@@ -70,7 +70,7 @@ export function getModel() : mongoose.Model<Game> {
 
 
 export function newGame(player1: User, player2: User): Game{
-    let _gamemodel = getModel();
+    const _gamemodel = getModel();
     if(player1!==player2) {
         let data = {
             playerOne: player1._id,
