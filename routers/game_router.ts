@@ -113,7 +113,7 @@ const games: Map<String, GameInfo> = new Map<String, GameInfo>();
 gameRouter.route('/invite')
     // Create a new game invitation if current user and invited user are friends
     .post(auth, moderator, (req, res, next) => {
-        if (req.user) {
+        if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
         // @ts-ignore Mongoose is casting automatically
