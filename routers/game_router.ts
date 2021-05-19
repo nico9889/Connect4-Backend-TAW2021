@@ -315,7 +315,7 @@ gameRouter.route('/:game_message_id/messages')
         if (req.user.id !== gameInfo.game.playerOne.toString() && req.user.id !== gameInfo.game.playerTwo.toString() && !gameInfo.spectators.includes(req.user.id)) {
             return next({status: 403, error: true, message: "You are not a player nor a spectator"});
         }
-        if (!req.body.message || !(req.body.message.trim.length > 0)) {
+        if (!req.body.message || req.body.message.trim().length <= 0) {
             return next({status: 500, error: true, message: "Message is too short"});
         }
         const mess = message.newMessage(req.user.id, gameInfo.game._id.toString(), req.body.message);
