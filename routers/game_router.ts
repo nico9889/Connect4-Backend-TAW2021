@@ -193,7 +193,6 @@ gameRouter.route('/invite')
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        // @ts-ignore Mongoose is casting automatically
         user.getModel().findOne({_id: req.user.id})
             .then((currentUser) => {
                 if (!currentUser) {
@@ -236,7 +235,6 @@ gameRouter.route('/invite')
         if (req.body.accept !== true) {
             return res.status(200).json({});
         }
-        // @ts-ignore
         user.getModel().findOne({_id: req.body.notification.receiver}).then((currentUser) => {
             user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
                 if (!currentUser || !sender) {
@@ -267,7 +265,9 @@ gameRouter.route("/ranked")
         });
     })
     .put(auth, (req, res, next) => {
-        // @ts-ignore
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
         user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
@@ -323,7 +323,9 @@ gameRouter.route("/scrimmage")
         });
     })
     .put(auth, (req, res, next) => {
-        // @ts-ignore
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
         user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
@@ -337,7 +339,6 @@ gameRouter.route("/scrimmage")
                     return res.status(200).json({error: false, message: ""});
                 } else {
                     scrimmageQueue.delete(opponent);
-                    // @ts-ignore
                     user.getModel().findOne({_id: opponent}).then((opponentUser) => {
                         if (!opponentUser) {
                             return next({status: 500, error: true, message: "Generic error occurred"});
@@ -382,8 +383,7 @@ gameRouter.route('/:spectate_id/spectate')
         } else {
             if (gameInfo.spectators.includes(req.user.id)) {
                 gameInfo.spectators = gameInfo.spectators.filter((spectator) => {
-                    // @ts-ignore
-                    return spectator !== req.user.id
+                    return spectator !== req.user?.id
                 });
             }
             io.to(req.user.id).socketsLeave(gameInfo.game._id.toString());
@@ -465,9 +465,7 @@ gameRouter.route('/:game_users_id/users')
         if (!gameInfo) {
             return next({status: 404, error: true, message: "Game not found"});
         }
-        // @ts-ignore
         user.getModel().find({
-            // @ts-ignore
             _id: {$in: gameInfo.spectators}
         }, {_id: 1, username: 1}).then((users) => {
             return res.status(200).json(users);

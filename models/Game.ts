@@ -3,15 +3,15 @@ import {User} from "./User";
 import {Coin} from "../routers/game_router";
 
 export interface Game extends mongoose.Document{
-    readonly _id: mongoose.Schema.Types.ObjectId,
-    playerOne: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    readonly _id: mongoose.Types.ObjectId,
+    playerOne: [{type: mongoose.Types.ObjectId, ref: 'User'}],
     playerOneName: string,
-    playerTwo: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    playerTwo: [{type: mongoose.Types.ObjectId, ref: 'User'}],
     playerTwoName: string,
     board: Coin[][],
     started: Date,
     ended: Date,
-    winner: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],
+    winner: [{type: mongoose.Types.ObjectId, ref: 'User'}],
     winnerName: string,
 }
 

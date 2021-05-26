@@ -36,7 +36,6 @@ userRouter.route("/:user_id")
             return next({status: 403, error: true, message: "You must change your password before"});
         }
 
-        // @ts-ignore
         user.getModel().findOne({_id: req.params.user_id}, {digest: 0, salt: 0}).then((user) => {
             if (!user) {
                 return next({status: 404, error: true, message: "User not found"});
@@ -58,7 +57,6 @@ userRouter.route("/:user_id")
             return next({status: 403, error: true, message: "You are not authorized to access this resource"});
         }
 
-        // @ts-ignore
         user.getModel().findOne({_id: req.params.user_id}).then((u) => {
             if (!u) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
@@ -94,7 +92,6 @@ userRouter.route("/:user_id")
     })
     // Delete a user FIXME: when a user it should be removed from friends
     .delete(auth, moderator, (req, res, next) => {
-        // @ts-ignore Mongoose can do the correct cast by itself
         user.getModel().findOne({_id: req.params.user_id}).then((target) => {
             if(!target){
                 return next({status: 500, error: true, message: "Generic error occurred"});

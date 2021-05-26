@@ -15,7 +15,6 @@ friendRouter.route("/")
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
 
-        // @ts-ignore
         user.getModel().findOne({_id: req.user.id}).then((current_user) => {
             if (!current_user) {
                 return next({status: 500, error: true, message: "An error occurred while retrieving friends"});
@@ -64,7 +63,7 @@ friendRouter.route("/")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        // @ts-ignore Mongoose is casting automatically
+
         user.getModel().findOne({username: req.body.username}).then((receiver) => {
             if (!(req.body.request == true && req.user !== undefined && receiver && receiver._id.toString() !== req.user.id)) {
                 return next({status: 500, error: true, message: "Invalid request"});
@@ -124,7 +123,6 @@ friendRouter.route("/:id")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error"});
         }
-        // @ts-ignore
         user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
             if (!currentUser) {
                 return next({status: 500, error: true, message: "Generic error"});

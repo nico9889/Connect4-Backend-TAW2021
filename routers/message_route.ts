@@ -16,7 +16,6 @@ messageRouter.route('/:id')
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        // @ts-ignore
         user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
             if (!currentUser || !req.user) {
                 return next({status: 500, error: true, errormessage: 'Generic error occurred'});
@@ -64,7 +63,6 @@ messageRouter.route('/:id')
             return next({status: 403, error: true, errormessage: 'Message cannot be empty!'});
         }
 
-        // @ts-ignore
         user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
             if (!currentUser || !req.user) {
                 return next({status: 500, error: true, message: "Generic error occurred"});

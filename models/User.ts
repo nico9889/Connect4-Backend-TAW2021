@@ -7,10 +7,10 @@ export enum Role {
 }
 
 export interface User extends mongoose.Document {
-    readonly _id: mongoose.Schema.Types.ObjectId,
+    readonly _id: mongoose.Types.ObjectId,
     username: string,
     roles: Role[],
-    friends: mongoose.Schema.Types.ObjectId[],
+    friends: mongoose.Types.ObjectId[],
     salt: string,                                   // Random salt
     digest: string,                                 // Password digest
     enabled: boolean,

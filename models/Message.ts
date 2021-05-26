@@ -1,7 +1,7 @@
 import mongoose = require('mongoose');
 
 export interface Message extends mongoose.Document {
-    readonly _id: mongoose.Schema.Types.ObjectId,
+    readonly _id: mongoose.Types.ObjectId,
     sender: string,
     receiver: string,
     content: string,

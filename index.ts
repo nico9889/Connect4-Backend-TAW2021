@@ -63,7 +63,6 @@ app.use("/v1/game", gameRouter);
 app.use((err, req, res, _) => {
     console.log(err);
     const statusCode = err.status || 500;
-    // @ts-ignore
     res.status(statusCode).json({statusCode: statusCode, error: true, message: err.message});
 });
 
