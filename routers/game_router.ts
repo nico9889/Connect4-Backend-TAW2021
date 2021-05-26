@@ -37,7 +37,7 @@ class Board {
             while (y > 0 && this.board[y][x] !== Coin.None) {
                 y--;
             }
-            if (y >= 0) {
+            if (y >= 0 && this.board[y][x] == Coin.None) {
                 this.board[y][x] = coin;
                 this.remainingMoves -= 1;
                 return true;
@@ -110,6 +110,83 @@ interface GameInfo {
 // FIXME: this is constantly growing while new games are started.
 const games: Map<String, GameInfo> = new Map<String, GameInfo>();
 
+// UserID, RATIO
+const rankedQueue: Map<string, number> = new Map();
+const scrimmageQueue: Map<string, number> = new Map();
+
+function createGame(currentUser: user.User, opponentUser: user.User) {
+    // If the users where queued we remove them from queues
+    rankedQueue.delete(currentUser._id.toString());
+    rankedQueue.delete(opponentUser._id.toString());
+    scrimmageQueue.delete(currentUser._id.toString());
+    scrimmageQueue.delete(opponentUser._id.toString());
+
+    // We pick randomly the user that has red color and starts the game
+    let playerOne: user.User;   // Red color, starts the game
+    let playerTwo: user.User;   // Yellow color
+    if (Math.random() < 0.5) {
+        playerOne = currentUser;
+        playerTwo = opponentUser;
+    } else {
+        playerOne = opponentUser;
+        playerTwo = currentUser;
+    }
+
+    // A new game is created and added to the list of games
+    const newGame = game.newGame(playerOne, playerTwo);
+    games.set(newGame._id.toString(), {
+        game: newGame,
+        board: new Board(),
+        playerOneTurn: true,
+        spectators: []
+    });
+
+    // Notify the sender that the user accepted the game request sending him the game id
+    if (sessionStore.findSession(currentUser._id.toString())) {
+        io.to(currentUser._id.toString()).emit("game new", {
+            id: newGame._id.toString()
+        })
+    }
+
+    // A socket.io room relative to the current game is created with both the players
+    // inside
+    io.to(currentUser._id.toString())
+        .to(opponentUser._id.toString())
+        .socketsJoin(newGame._id.toString());
+
+    // Notify the users that a new game has been created
+    io.to(newGame._id.toString()).emit("game new", {
+        id: newGame._id.toString()
+    })
+
+    // We update the session with the current match that the users are playing
+    sessionStore.saveSession(currentUser._id.toString(), {
+        online: true,
+        game: newGame.id
+    });
+    sessionStore.saveSession(opponentUser._id.toString(), {
+        online: true,
+        game: newGame.id
+    });
+
+    // We update the friends that the users started a match
+    currentUser.friends.forEach((friend) => {
+        const online: string[] = [];
+        if (sessionStore.findSession(friend.toString())) {
+            online.push(friend.toString());
+        }
+        io.to(online).emit('friend update');
+    });
+    opponentUser.friends.forEach((friend) => {
+        const online: string[] = [];
+        if (sessionStore.findSession(friend.toString())) {
+            online.push(friend.toString());
+        }
+        io.to(online).emit('friend update');
+    });
+    return newGame;
+}
+
 gameRouter.route('/invite')
     // Create a new game invitation if current user and invited user are friends
     .post(auth, moderator, (req, res, next) => {
@@ -165,65 +242,8 @@ gameRouter.route('/invite')
                 if (!currentUser || !sender) {
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
-
-                // We pick randomly the user that has red color and starts the game
-                let playerOne: user.User;   // Red color, starts the game
-                let playerTwo: user.User;   // Yellow color
-                if (Math.random() < 0.5) {
-                    playerOne = currentUser;
-                    playerTwo = sender;
-                } else {
-                    playerOne = sender;
-                    playerTwo = currentUser;
-                }
-
                 // A new game is created and added to the list of games
-                const newGame = game.newGame(playerOne, playerTwo);
-                games.set(newGame._id.toString(), {
-                    game: newGame,
-                    board: new Board(),
-                    playerOneTurn: true,
-                    spectators: []
-                });
-
-                // Notify the sender that the user accepted the game request sending him the game id
-                if (sessionStore.findSession(req.body.notification.sender)) {
-                    io.to(req.body.notification.sender).emit("game new", {
-                        id: newGame._id.toString()
-                    })
-                }
-
-                // A socket.io room relative to the current game is created with both the players
-                // inside
-                io.to(req.body.notification.receiver)
-                    .to(req.body.notification.sender)
-                    .socketsJoin(newGame._id.toString());
-
-                // We update the session with the current match that the users are playing
-                sessionStore.saveSession(req.body.notification.receiver, {
-                    online: true,
-                    game: newGame.id
-                });
-                sessionStore.saveSession(req.body.notification.sender, {
-                    online: true,
-                    game: newGame.id
-                });
-
-                // We update the friends that the users started a match
-                currentUser.friends.forEach((friend) => {
-                    const online: string[] = [];
-                    if (sessionStore.findSession(friend.toString())) {
-                        online.push(friend.toString());
-                    }
-                    io.to(online).emit('friend update');
-                });
-                sender.friends.forEach((friend) => {
-                    const online: string[] = [];
-                    if (sessionStore.findSession(friend.toString())) {
-                        online.push(friend.toString());
-                    }
-                    io.to(online).emit('friend update');
-                });
+                const newGame = createGame(currentUser, sender);
                 return res.status(200).json(newGame);
             }).catch((err) => {
                 console.error(err);
@@ -232,6 +252,114 @@ gameRouter.route('/invite')
         }).catch((err) => {
             console.error(err);
             return next({status: 404, error: true, message: "Query error"});
+        })
+    })
+
+
+gameRouter.route("/ranked")
+    .get(auth, (req, res, next) => {
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
+        return res.status(200).json({
+            queued: rankedQueue.has(req.user.id),
+            inQueue: rankedQueue.size
+        });
+    })
+    .put(auth, (req, res, next) => {
+        // @ts-ignore
+        user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
+            if (!req.user || !currentUser) {
+                return next({status: 500, error: true, message: "Generic error occurred"});
+            }
+            if (req.body.subscribe === true) {
+                scrimmageQueue.delete(req.user.id);
+                const currentUserRatio = currentUser.getRatio();
+                let opponent: string | undefined = undefined;
+                rankedQueue.forEach((opponentRatio, opponentId) => {
+                    if (!opponent && opponentId !== currentUser._id.toString() && currentUserRatio >= opponentRatio - 0.25 && currentUserRatio <= (opponentRatio + 0.25)) {
+                        opponent = opponentId;
+                    }
+                });
+                if (!opponent) {
+                    rankedQueue.set(currentUser._id.toString(), currentUser.getRatio());
+                    io.emit("queue update");
+                    return res.status(200).json({error: false, message: ""});
+                } else {
+                    rankedQueue.delete(opponent);
+                    user.getModel().findOne({_id: opponent}).then((opponentUser) => {
+                        if (!opponentUser) {
+                            return next({status: 500, error: true, message: "Generic error occurred"});
+                        }
+                        createGame(currentUser, opponentUser);
+                        io.emit("queue update");
+                        return res.status(200).json({error: false, message: ""});
+                    }).catch((err) => {
+                        console.error(err);
+                        return next({status: 500, error: true, message: "Invalid body request"});
+                    })
+                }
+            } else if (req.body.subscribe === false) {
+                rankedQueue.delete(req.user.id);
+                io.emit("queue update");
+                return res.status(200).json({error: false, message: ""});
+            } else {
+                return next({status: 500, error: true, message: "Invalid body request"});
+            }
+        }).catch((err) => {
+            console.error(err);
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        })
+    })
+
+gameRouter.route("/scrimmage")
+    .get(auth, (req, res, next) => {
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
+        return res.status(200).json({
+            queued: scrimmageQueue.has(req.user.id),
+            inQueue: scrimmageQueue.size
+        });
+    })
+    .put(auth, (req, res, next) => {
+        // @ts-ignore
+        user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
+            if (!req.user || !currentUser) {
+                return next({status: 500, error: true, message: "Generic error occurred"});
+            }
+            if (req.body.subscribe === true) {
+                rankedQueue.delete(req.user.id);
+                const opponent: string | undefined = scrimmageQueue.values().next().value;
+                if (!opponent) {
+                    scrimmageQueue.set(currentUser._id.toString(), currentUser.getRatio());
+                    io.emit("queue update");
+                    return res.status(200).json({error: false, message: ""});
+                } else {
+                    scrimmageQueue.delete(opponent);
+                    // @ts-ignore
+                    user.getModel().findOne({_id: opponent}).then((opponentUser) => {
+                        if (!opponentUser) {
+                            return next({status: 500, error: true, message: "Generic error occurred"});
+                        }
+                        createGame(currentUser, opponentUser);
+                        io.emit("queue update");
+                        return res.status(200).json({error: false, message: ""});
+                    }).catch((err) => {
+                        console.error(err);
+                        return next({status: 500, error: true, message: "Invalid body request"});
+                    })
+                }
+            } else if (req.body.subscribe === false) {
+                scrimmageQueue.delete(req.user.id);
+                io.emit("queue update");
+                return res.status(200).json({error: false, message: ""});
+            } else {
+                return next({status: 500, error: true, message: "Invalid body request"});
+            }
+        }).catch((err) => {
+            console.error(err);
+            return next({status: 500, error: true, message: "Generic error occurred"});
         })
     })
 

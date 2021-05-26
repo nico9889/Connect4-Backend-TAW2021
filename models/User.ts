@@ -22,7 +22,8 @@ export interface User extends mongoose.Document {
     setPassword: (pwd: string) => void,
     validatePassword: (pwd: string) => boolean,
     setRole: (role: Role) => Role,
-    hasRole: (role: Role) => boolean
+    hasRole: (role: Role) => boolean,
+    getRatio: () => number
 }
 
 export interface Friend{
@@ -115,6 +116,10 @@ userSchema.methods.setRole = function (role: Role): void {
     if (!this.hasRole(role)) {
         this.roles.push(role);
     }
+}
+
+userSchema.methods.getRatio = function(): number{
+    return this.victories / (this.defeats + 1);
 }
 
 export function getSchema() {

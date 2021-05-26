@@ -19,7 +19,7 @@ leaderboardRouter.get("/", (req, res, next) => {
             for (const user of users) {
                 leaderboard.push({
                     username: user.username,
-                    ratio: user.victories / (user.defeats + 1),
+                    ratio: user.getRatio(),
                     victories: user.victories,
                     defeats: user.defeats
                 })
