@@ -330,7 +330,7 @@ gameRouter.route("/scrimmage")
             }
             if (req.body.subscribe === true) {
                 rankedQueue.delete(req.user.id);
-                const opponent: string | undefined = scrimmageQueue.values().next().value;
+                const opponent: string | undefined = scrimmageQueue.keys().next().value;
                 if (!opponent) {
                     scrimmageQueue.set(currentUser._id.toString(), currentUser.getRatio());
                     io.emit("queue update");
