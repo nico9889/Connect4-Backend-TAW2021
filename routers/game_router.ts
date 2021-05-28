@@ -407,7 +407,7 @@ gameRouter.route('/:game_message_id/messages')
         if (!gameInfo) {
             return next({status: 404, error: true, message: "Game not found"});
         }
-        if (req.user.id === gameInfo.game.playerOne.toString() || req.user.id === gameInfo.game.playerTwo.toString()) {
+        if (req.user.id === (gameInfo.game.playerOne as User)._id.toString() || req.user.id === (gameInfo.game.playerTwo as User).toString()) {
             message.getModel()
                 .find({
                     sender: {$in: [gameInfo.game.playerOne, gameInfo.game.playerTwo]},
