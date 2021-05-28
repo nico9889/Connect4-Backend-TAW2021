@@ -276,7 +276,7 @@ gameRouter.route("/ranked")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}, {username:1, friends: 1}).then((currentUser) => {
+        user.getModel().findOne({_id: req.user.id}, {username:1, friends: 1, victories:1, defeats:1}).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
@@ -285,6 +285,8 @@ gameRouter.route("/ranked")
                 const currentUserRatio = currentUser.getRatio();
                 let opponent: string | undefined = undefined;
                 rankedQueue.forEach((opponentRatio, opponentId) => {
+                    console.log(opponentRatio);
+                    console.log(currentUserRatio);
                     if (!opponent && opponentId !== currentUser._id.toString() && currentUserRatio >= opponentRatio - 0.25 && currentUserRatio <= (opponentRatio + 0.25)) {
                         opponent = opponentId;
                     }
@@ -295,7 +297,7 @@ gameRouter.route("/ranked")
                     return res.status(200).json({error: false, message: ""});
                 } else {
                     rankedQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}, {username:1, friends: 1}).then((opponentUser) => {
+                    user.getModel().findOne({_id: opponent}, {username:1, friends: 1, victories:1, defeats:1}).then((opponentUser) => {
                         if (!opponentUser) {
                             return next({status: 500, error: true, message: "Generic error occurred"});
                         }
