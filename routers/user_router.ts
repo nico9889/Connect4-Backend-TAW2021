@@ -90,14 +90,21 @@ userRouter.route("/:user_id")
             return next({status: 500, error: true, message: "An error has occurred"});
         });
     })
-    // Delete a user FIXME: when a user it should be removed from friends
+    // Delete a user FIXME: test if user delete works and get removed from friends
     .delete(auth, moderator, (req, res, next) => {
-        user.getModel().findOne({_id: req.params.user_id}).then((target) => {
+        user.getModel().findOne({_id: req.params.user_id}).populate('friends').then((target) => {
             if(!target){
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
             if (!user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && !target.hasRole(Role.ADMIN)) {
                 return next({status: 403, error: true, message: "You are not authorized to access this resource"});
+            }
+            for(const friend of target.friends){
+                const index = friend.friends.indexOf(target);
+                if(index > -1){
+                    friend.friends.splice(index, 1);
+                }
+                friend.save();
             }
             target.delete();
             return res.status(200).json({error: false, message: ""});

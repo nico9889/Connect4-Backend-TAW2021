@@ -16,42 +16,29 @@ messageRouter.route('/:id')
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
-            if (!currentUser || !req.user) {
-                return next({status: 500, error: true, errormessage: 'Generic error occurred'});
-            }
 
-            const dest = currentUser.friends.find((id) => {
-                return id.toString() === req.params.id;
-            });
-
-            if (!dest && !user.checkRoles(req.user, [Role.ADMIN, Role.MODERATOR])) {
-                return next({status: 500, error: true, errormessage: 'User is not your friend!'});
-            }
-            message.getModel().find({
-                sender: {$in: [req.user.id, req.params.id]},
-                receiver: {$in: [req.user.id, req.params.id]},
-            }).then((messages) => {
-                if (!messages) {
-                    return next({
-                        status: 500,
-                        error: true,
-                        errormessage: 'Error while retrieving the messages'
-                    });
+        message.getModel()
+            .find({
+                sender: {
+                    $in: [req.user.id, req.params.id]
+                },
+                receiver: {
+                    $in: [req.user.id, req.params.id]
                 }
-                return res.status(200).json(messages);
-            }).catch((err) => {
-                console.log(err);
-                return next({
-                    status: 500,
-                    error: true,
-                    errormessage: 'Error while retrieving the messages'
-                });
             })
-        }).catch((err) => {
-            console.log(err);
-            return next({status: 500, error: true, errormessage: 'Generic error occurred. Try again later!'});
-        })
+            .populate('sender', 'username')
+            .populate('receiver', 'username')
+            .then((messages) => {
+                if (!messages) {
+                    return next({status: 404, error: true, errormessage: 'Messages not found'});
+                }
+
+                return res.status(200).json(messages);
+            })
+            .catch((err) => {
+                console.log(err);
+                return next({status: 500, error: true, errormessage: 'Generic error occurred. Try again later!'});
+            })
     })
     // Send a new private message
     .post(auth, moderator, (req, res, next) => {
@@ -76,7 +63,7 @@ messageRouter.route('/:id')
                 return next({status: 500, error: true, errormessage: 'User is not your friend!'});
             }
 
-            const mess = message.newMessage(req.user.id, req.params.id, req.body.message.content);
+            const mess = message.newMessage(req.user.id, req.params.id, message.Type.User, req.body.message.content);
             mess.save().then(() => {
                 if (req.user) {
                     io.to(req.params.id).emit('private message', {

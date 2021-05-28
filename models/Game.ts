@@ -2,39 +2,36 @@ import mongoose = require('mongoose');
 import {User} from "./User";
 import {Coin} from "../routers/game_router";
 
-export interface Game extends mongoose.Document{
+export interface Game extends mongoose.Document {
     readonly _id: mongoose.Types.ObjectId,
-    playerOne: [{type: mongoose.Types.ObjectId, ref: 'User'}],
-    playerOneName: string,
-    playerTwo: [{type: mongoose.Types.ObjectId, ref: 'User'}],
-    playerTwoName: string,
+    playerOne: User | mongoose.Types.ObjectId,
+    playerTwo: User | mongoose.Types.ObjectId,
     board: Coin[][],
+    moves: number[],
     started: Date,
     ended: Date,
-    winner: [{type: mongoose.Types.ObjectId, ref: 'User'}],
-    winnerName: string,
+    winner: User | mongoose.Types.ObjectId,
 }
 
 let gameSchema = new mongoose.Schema<Game>({
     playerOne: {
         type: mongoose.SchemaTypes.ObjectId,
-        required: true
-    },
-    playerOneName: {
-        type: mongoose.SchemaTypes.String,
-        required: true
+        required: true,
+        ref: 'User'
     },
     playerTwo: {
         type: mongoose.SchemaTypes.ObjectId,
-        required: true
-    },
-    playerTwoName: {
-        type: mongoose.SchemaTypes.String,
-        required: true
+        required: true,
+        ref: 'User'
     },
     board: {
-      type: [[mongoose.SchemaTypes.Number]],
-      required: false,
+        type: [[mongoose.SchemaTypes.Number]],
+        required: false,
+    },
+    moves: {
+        type: [mongoose.SchemaTypes.Number],
+        required: false,
+        default: []
     },
     started: {
         type: mongoose.SchemaTypes.Date,
@@ -47,36 +44,34 @@ let gameSchema = new mongoose.Schema<Game>({
     },
     winner: {
         type: mongoose.SchemaTypes.ObjectId,
-        required: false
+        required: false,
+        ref: 'User'
     },
-    winnerName: {
-        type: mongoose.SchemaTypes.String,
-        required: false
-    }
 });
 
 
-export function getSchema() { return gameSchema;}
+export function getSchema() {
+    return gameSchema;
+}
 
 
 // Singleton pattern
 let gameModel: mongoose.Model<Game>;
-export function getModel() : mongoose.Model<Game> {
-    if(!gameModel){
+
+export function getModel(): mongoose.Model<Game> {
+    if (!gameModel) {
         gameModel = mongoose.model('Game', getSchema());
     }
     return gameModel;
 }
 
 
-export function newGame(player1: User, player2: User): Game{
+export function newGame(player1: User, player2: User): Game {
     const _gamemodel = getModel();
-    if(player1!==player2) {
+    if (player1._id !== player2._id) {
         let data = {
-            playerOne: player1._id,
-            playerOneName: player1.username,
-            playerTwo: player2._id,
-            playerTwoName: player2.username
+            playerOne: player1,
+            playerTwo: player2,
         }
         return new _gamemodel(data);
     }

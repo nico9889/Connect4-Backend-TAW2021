@@ -1,21 +1,35 @@
 import mongoose = require('mongoose');
+import {User} from "./User";
+import {Game} from "./Game";
+
+export enum Type{
+    Game = 'Game',
+    User = 'User'
+}
 
 export interface Message extends mongoose.Document {
     readonly _id: mongoose.Types.ObjectId,
-    sender: string,
-    receiver: string,
+    sender: User | mongoose.Types.ObjectId,
+    receiver: User | Game | mongoose.Types.ObjectId,
+    onModel: Type,
     content: string,
     datetime: Date
 }
 
 let messageSchema = new mongoose.Schema<Message>({
     sender: {
-        type: mongoose.SchemaTypes.String,
-        required: true
+        type: mongoose.SchemaTypes.ObjectId,
+        required: true,
+        ref: 'User'
     },
-    receiver: {
+    receiver: { type: mongoose.SchemaTypes.ObjectId,
+        required: true,
+        refPath: 'onModel'
+    },
+    onModel: {
         type: mongoose.SchemaTypes.String,
-        required: true
+        required: true,
+        enum: ['User','Game']
     },
     content: {
         type: mongoose.SchemaTypes.String,
@@ -44,8 +58,8 @@ export function getModel(): mongoose.Model<Message> {
 }
 
 
-export function newMessage(sender: string, receiver: string, content: string) {
+export function newMessage(sender: string, receiver: string, onModel: Type, content: string) {
     const _model = getModel();
-    return new _model({sender, receiver, content, date: new Date()});
+    return new _model({sender, receiver, onModel, content, date: new Date()});
 }
 

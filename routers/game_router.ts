@@ -5,6 +5,7 @@ import * as user from '../models/User';
 import * as game from '../models/Game';
 import * as message from '../models/Message';
 import {io, sessionStore} from "../index";
+import {User} from "../models/User";
 
 export let gameRouter = express.Router();
 
@@ -17,6 +18,7 @@ export enum Coin {
 // Game board class, track the progress of the game
 class Board {
     private readonly board: Coin[][];
+    private readonly moves: Coin[];
     private remainingMoves = 6 * 7;
 
     constructor() {
@@ -28,6 +30,7 @@ class Board {
             [Coin.None, Coin.None, Coin.None, Coin.None, Coin.None, Coin.None, Coin.None],
             [Coin.None, Coin.None, Coin.None, Coin.None, Coin.None, Coin.None, Coin.None],
         ]
+        this.moves = [];
     }
 
     // Put a coin into the board, return false if the move is invalid
@@ -40,6 +43,7 @@ class Board {
             if (y >= 0 && this.board[y][x] == Coin.None) {
                 this.board[y][x] = coin;
                 this.remainingMoves -= 1;
+                this.moves.push(x);
                 return true;
             } else {
                 return false;
@@ -94,6 +98,10 @@ class Board {
             }
         }
         return Coin.None;
+    }
+
+    getMoves(): number[] {
+        return this.moves;
     }
 }
 
@@ -235,8 +243,8 @@ gameRouter.route('/invite')
         if (req.body.accept !== true) {
             return res.status(200).json({});
         }
-        user.getModel().findOne({_id: req.body.notification.receiver}).then((currentUser) => {
-            user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
+        user.getModel().findOne({_id: req.body.notification.receiver}, {username:1, friends: 1}).then((currentUser) => {
+            user.getModel().findOne({_id: req.body.notification.sender}, {username:1, friends: 1}).then((sender) => {
                 if (!currentUser || !sender) {
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
@@ -268,7 +276,7 @@ gameRouter.route("/ranked")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
+        user.getModel().findOne({_id: req.user.id}, {username:1, friends: 1}).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
@@ -287,7 +295,7 @@ gameRouter.route("/ranked")
                     return res.status(200).json({error: false, message: ""});
                 } else {
                     rankedQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}).then((opponentUser) => {
+                    user.getModel().findOne({_id: opponent}, {username:1, friends: 1}).then((opponentUser) => {
                         if (!opponentUser) {
                             return next({status: 500, error: true, message: "Generic error occurred"});
                         }
@@ -326,7 +334,7 @@ gameRouter.route("/scrimmage")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}).then((currentUser) => {
+        user.getModel().findOne({_id: req.user.id}, {username:1, friends: 1}).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
@@ -339,7 +347,7 @@ gameRouter.route("/scrimmage")
                     return res.status(200).json({error: false, message: ""});
                 } else {
                     scrimmageQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}).then((opponentUser) => {
+                    user.getModel().findOne({_id: opponent}, {username:1, friends: 1}).then((opponentUser) => {
                         if (!opponentUser) {
                             return next({status: 500, error: true, message: "Generic error occurred"});
                         }
@@ -379,7 +387,6 @@ gameRouter.route('/:spectate_id/spectate')
                 gameInfo.spectators.push(req.user.id);
             }
             io.to(req.user.id).socketsJoin(gameInfo.game._id.toString());
-            io.to(gameInfo.game._id.toString()).emit('game user new');
         } else {
             if (gameInfo.spectators.includes(req.user.id)) {
                 gameInfo.spectators = gameInfo.spectators.filter((spectator) => {
@@ -387,7 +394,6 @@ gameRouter.route('/:spectate_id/spectate')
                 });
             }
             io.to(req.user.id).socketsLeave(gameInfo.game._id.toString());
-            io.to(gameInfo.game._id.toString()).emit('game user new');
         }
         return res.status(200).json({error: false, message: ''});
     })
@@ -402,10 +408,12 @@ gameRouter.route('/:game_message_id/messages')
             return next({status: 404, error: true, message: "Game not found"});
         }
         if (req.user.id === gameInfo.game.playerOne.toString() || req.user.id === gameInfo.game.playerTwo.toString()) {
-            message.getModel().find({
-                sender: {$in: [gameInfo.game.playerOne.toString(), gameInfo.game.playerTwo.toString()]},
-                receiver: req.params.game_message_id,
-            })
+            message.getModel()
+                .find({
+                    sender: {$in: [gameInfo.game.playerOne, gameInfo.game.playerTwo]},
+                    receiver: req.params.game_message_id,
+                })
+                .populate('sender', 'username')
                 .then((messages) => {
                     return res.status(200).json(messages);
                 })
@@ -417,6 +425,7 @@ gameRouter.route('/:game_message_id/messages')
                 });
         } else if (gameInfo.spectators.includes(req.user.id)) {
             message.getModel().find({receiver: req.params.game_message_id})
+                .populate('sender', 'username')
                 .then((messages) => {
                     if (messages) {
                         return res.status(200).json(messages);
@@ -446,7 +455,7 @@ gameRouter.route('/:game_message_id/messages')
         if (!req.body.message || req.body.message.trim().length <= 0) {
             return next({status: 500, error: true, message: "Message is too short"});
         }
-        const mess = message.newMessage(req.user.id, gameInfo.game._id.toString(), req.body.message);
+        const mess = message.newMessage(req.user.id, gameInfo.game._id.toString(), message.Type.Game, req.body.message);
         mess.save().then(_ => {
             io.to(gameInfo.game._id.toString()).emit('game message new');
             return res.status(200).json({error: false, message: ""});
@@ -454,25 +463,6 @@ gameRouter.route('/:game_message_id/messages')
             console.error(err);
             return next({status: 500, error: true, message: "Error while saving message"});
         });
-    })
-
-gameRouter.route('/:game_users_id/users')
-    .get(auth, moderator, (req, res, next) => {
-        if (!req.user) {
-            return next({status: 500, error: true, message: "Generic error occurred"});
-        }
-        const gameInfo = games.get(req.params.game_users_id);
-        if (!gameInfo) {
-            return next({status: 404, error: true, message: "Game not found"});
-        }
-        user.getModel().find({
-            _id: {$in: gameInfo.spectators}
-        }, {_id: 1, username: 1}).then((users) => {
-            return res.status(200).json(users);
-        }).catch((err) => {
-            console.error(err);
-            return next({status: 500, error: true, message: "Error while querying users"});
-        })
     })
 
 gameRouter.route('/:id')
@@ -488,11 +478,8 @@ gameRouter.route('/:id')
         return res.status(200).json({
             board: gameInfo.board,
             playerOne: gameInfo.game.playerOne,
-            playerOneName: gameInfo.game.playerOneName,
             playerTwo: gameInfo.game.playerTwo,
-            playerTwoName: gameInfo.game.playerTwoName,
             winner: gameInfo.game.winner,
-            winnerName: gameInfo.game.winnerName,
             playerOneTurn: gameInfo.playerOneTurn,
             spectators: gameInfo.spectators,
             ended: gameInfo.game.ended
@@ -507,15 +494,7 @@ gameRouter.route('/:id')
         if (!gameInfo) {
             return next({status: 404, error: true, message: "Game not found"});
         }
-        let currentPlayer: string;
-        let coin: Coin;
-        if (gameInfo.playerOneTurn) {
-            currentPlayer = gameInfo.game.playerOne.toString();
-            coin = Coin.Red;
-        } else {
-            currentPlayer = gameInfo.game.playerTwo.toString();
-            coin = Coin.Yellow;
-        }
+
         if (gameInfo.game.winner || gameInfo.game.ended) {
             return res.status(200).json({
                 board: gameInfo.board,
@@ -526,31 +505,41 @@ gameRouter.route('/:id')
                 spectators: gameInfo.spectators
             })
         }
+
+        let currentPlayer: string;
+        let coin: Coin;
+
+        if (gameInfo.playerOneTurn) {
+            currentPlayer = (gameInfo.game.playerOne as User)._id.toString();
+            coin = Coin.Red;
+        } else {
+            currentPlayer = (gameInfo.game.playerTwo as User)._id.toString();
+            coin = Coin.Yellow;
+        }
+
         if (req.user.id !== currentPlayer) {
             return next({status: 403, error: true, message: "You cannot play this game, or it's not your turn"});
         }
+
         if (req.body.x < 0 || !gameInfo.board.put(req.body.x, coin)) {
             return next({status: 403, error: true, message: "Invalid move"});
         }
 
-        // Game logic starts here
-        let loserId;
         gameInfo.playerOneTurn = !gameInfo.playerOneTurn;
-        if (gameInfo.board.checkWinner() == Coin.Red) {
-            gameInfo.game.winner = gameInfo.game.playerOne;
-            loserId = gameInfo.game.playerTwo;
-            gameInfo.game.winnerName = gameInfo.game.playerOneName;
-        } else if (gameInfo.board.checkWinner() == Coin.Yellow) {
-            gameInfo.game.winner = gameInfo.game.playerTwo;
-            loserId = gameInfo.game.playerOne;
-            gameInfo.game.winnerName = gameInfo.game.playerTwoName;
-        } else {
-            if (gameInfo.board.getRemainingMoves() === 0) {
-                gameInfo.game.winnerName = 'Tie!';
+
+        const winnerCoin = gameInfo.board.checkWinner();
+        if (gameInfo.board.getRemainingMoves() === 0 || winnerCoin !== Coin.None) {
+            let loserId;
+            if (winnerCoin === Coin.Red) {
+                gameInfo.game.winner = gameInfo.game.playerOne;
+                loserId = gameInfo.game.playerTwo;
+            } else if (winnerCoin === Coin.Yellow) {
+                gameInfo.game.winner = gameInfo.game.playerTwo;
+                loserId = gameInfo.game.playerOne;
             }
-        }
-        if (gameInfo.game.winner && loserId) {
+
             gameInfo.game.board = gameInfo.board.get();
+            gameInfo.game.moves = gameInfo.board.getMoves();
             gameInfo.game.ended = new Date();
             gameInfo.game.save();
             // @ts-ignore
@@ -573,11 +562,8 @@ gameRouter.route('/:id')
         return res.status(200).json({
             board: gameInfo.board,
             playerOne: gameInfo.game.playerOne,
-            playerOneName: gameInfo.game.playerOneName,
             playerTwo: gameInfo.game.playerTwo,
-            playerTwoName: gameInfo.game.playerTwoName,
             winner: gameInfo.game.winner,
-            winnerName: gameInfo.game.winnerName,
             playerOneTurn: gameInfo.playerOneTurn,
             spectators: gameInfo.spectators,
             ended: gameInfo.game.ended

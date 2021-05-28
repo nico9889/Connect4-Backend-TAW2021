@@ -15,48 +15,32 @@ friendRouter.route("/")
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
 
-        user.getModel().findOne({_id: req.user.id}).then((current_user) => {
-            if (!current_user) {
+        user.getModel().findOne({_id: req.user.id}).populate('friends', '_id username avatar').then((currentUser) => {
+            if (!currentUser) {
                 return next({status: 500, error: true, message: "An error occurred while retrieving friends"});
             }
-            user.getModel().find({
-                _id: {
-                    $in:
-                    current_user.friends
-                }
-            }, {_id: 1, username: 1, avatar: 1})
-                .then((friends) => {
-                    const out: Friend[] = [];
-                    friends.forEach((friend) => {
-                        const session = sessionStore.findSession(friend._id.toString());
+            const out: Friend[] = [];
+            currentUser.friends.forEach((friend) => {
+                const session = sessionStore.findSession(friend._id.toString());
 
-                        out.push({
-                            id: friend._id.toString(),
-                            username: friend.username,
-                            online: session?.online || false,
-                            game: session?.game || '',
-                            avatar: friend.avatar
-                        });
-                    })
-                    return res.status(200).json(out);
-                })
-                .catch((err) => {
-                    console.error(err);
-                    return next({
-                        status: 500,
-                        error: true,
-                        message: "Generic error occurred while retrieving friends"
-                    });
-                })
-
-        }).catch((err) => {
-            console.error(err);
-            return next({
-                status: 500,
-                error: true,
-                message: "Generic error occurred while retrieving friends"
-            });
+                out.push({
+                    id: friend._id.toString(),
+                    username: friend.username,
+                    online: session?.online || false,
+                    game: session?.game || '',
+                    avatar: friend.avatar
+                });
+            })
+            return res.status(200).json(out);
         })
+            .catch((err) => {
+                console.error(err);
+                return next({
+                    status: 500,
+                    error: true,
+                    message: "Generic error occurred while retrieving friends"
+                });
+            })
     })
     // Create a new Friend request searching the user by name
     .post(auth, moderator, (req, res, next) => {
@@ -98,23 +82,23 @@ friendRouter.route("/")
         if (req.body.accept !== true) {
             return res.status(200).json({error: false, message: ""});
         }
-
         user.getModel().findOne({_id: req.body.notification.sender}).then((sender) => {
             user.getModel().findOne({_id: req.body.notification.receiver}).then((receiver) => {
                 if (!sender || !receiver) {
                     return next({status: 404, error: true, message: "Cannot find the requested resource"});
                 }
 
-                if (sender.friends.includes(receiver._id) || receiver.friends.includes(sender._id)) {
+                if (sender.friends.includes(receiver) || receiver.friends.includes(sender)) {
                     return next({status: 403, error: true, message: "You are already friend!"});
                 }
-                sender.friends.push(receiver._id);
-                receiver.friends.push(sender._id);
+                sender.friends.push(receiver);
+                receiver.friends.push(sender);
                 sender.save();
                 receiver.save();
                 return res.status(200).json({error: false, message: ""});
             });
         });
+
     })
 
 // Send back the friend details only if the user asking if friend of the user asked for
@@ -157,7 +141,18 @@ friendRouter.route("/:id")
             }
         )
     })
-    // TODO: remove friendship
+    // FIXME: test if this works correctly
     .delete(auth, moderator, (req, res, next) => {
-
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error"});
+        }
+        user.getModel().findOne({_id: req.user.id}).populate('friends').then((currentUser) => {
+            if (!currentUser) {
+                return next({status: 404, error: true, message: "User not found"});
+            }
+            return res.status(200).json({});
+        }).catch((err) => {
+            console.error(err);
+            return next({status: 500, error: true, message: "Generic error"});
+        });
     })

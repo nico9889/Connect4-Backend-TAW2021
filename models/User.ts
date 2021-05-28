@@ -10,7 +10,7 @@ export interface User extends mongoose.Document {
     readonly _id: mongoose.Types.ObjectId,
     username: string,
     roles: Role[],
-    friends: mongoose.Types.ObjectId[],
+    friends: User[],
     salt: string,                                   // Random salt
     digest: string,                                 // Password digest
     enabled: boolean,
@@ -48,11 +48,11 @@ let userSchema = new mongoose.Schema<User>({
         required: true,
         default: []
     },
-    friends: {
-        type: [mongoose.SchemaTypes.ObjectId],
-        required: true,
-        default: []
-    },
+    friends: [
+        { type: mongoose.SchemaTypes.ObjectId,
+            required: true,
+            ref: 'User'
+        }],
     salt: {
         type: mongoose.SchemaTypes.String,
         required: true
