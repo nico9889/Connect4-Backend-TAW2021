@@ -285,8 +285,6 @@ gameRouter.route("/ranked")
                 const currentUserRatio = currentUser.getRatio();
                 let opponent: string | undefined = undefined;
                 rankedQueue.forEach((opponentRatio, opponentId) => {
-                    console.log(opponentRatio);
-                    console.log(currentUserRatio);
                     if (!opponent && opponentId !== currentUser._id.toString() && currentUserRatio >= opponentRatio - 0.25 && currentUserRatio <= (opponentRatio + 0.25)) {
                         opponent = opponentId;
                     }
