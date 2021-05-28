@@ -93,6 +93,7 @@ friendRouter.route("/")
                 }
                 sender.friends.push(receiver);
                 receiver.friends.push(sender);
+                io.to(sender._id.toString()).to(receiver._id.toString()).emit('friend update');
                 sender.save();
                 receiver.save();
                 return res.status(200).json({error: false, message: ""});
