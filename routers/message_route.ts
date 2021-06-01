@@ -60,7 +60,7 @@ messageRouter.route('/:id')
             })
 
             if (!dest && !user.checkRoles(req.user, [Role.ADMIN, Role.MODERATOR])) {
-                return next({status: 500, error: true, errormessage: 'User is not your friend!'});
+                return next({status: 403, error: true, message: 'User is not your friend!'});
             }
 
             const mess = message.newMessage(req.user.id, req.params.id, message.Type.User, req.body.message.content);
