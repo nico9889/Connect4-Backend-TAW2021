@@ -7,14 +7,25 @@ import * as message from '../models/Message'
 import {Role} from "../models/User";
 import {io, sessionStore} from "../index";
 import {newNotification, Type} from "../models/Notification";
+import {check, validationResult} from "express-validator"
 
 export const messageRouter = express.Router();
 
 messageRouter.route('/:id')
     // Get private messages
-    .get(auth, moderator, (req, res, next) => {
+    .get(auth, moderator, check("limit").optional().isInt(), (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
+        }
+        let limit = 50;
+        try {
+            validationResult(req).throw()
+            if(req.query.limit) {
+                limit = parseInt(req.query.limit as string);
+            }
+        }catch(err){
+            console.error(err);
+            limit = 50;
         }
 
         message.getModel()
@@ -26,11 +37,13 @@ messageRouter.route('/:id')
                     $in: [req.user.id, req.params.id]
                 }
             }, {onModel:0})
+            .sort("-datetime")
+            .limit(limit)
             .then((messages) => {
                 if (!messages) {
                     return next({status: 404, error: true, errormessage: 'Messages not found'});
                 }
-
+                console.log(messages);
                 return res.status(200).json(messages);
             })
             .catch((err) => {

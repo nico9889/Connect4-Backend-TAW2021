@@ -38,7 +38,6 @@ let messageSchema = new mongoose.Schema<Message>({
     datetime: {
         type: mongoose.SchemaTypes.Date,
         required: true,
-        default: new Date()
     }
 });
 
@@ -60,6 +59,6 @@ export function getModel(): mongoose.Model<Message> {
 
 export function newMessage(sender: string, receiver: string, onModel: Type, content: string) {
     const _model = getModel();
-    return new _model({sender, receiver, onModel, content, date: new Date()});
+    return new _model({sender, receiver, onModel, content, datetime:new Date()});
 }
 
