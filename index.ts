@@ -23,7 +23,7 @@ import {leaderboardRouter} from "./routers/leaderboard_router";
 import {notificationsRouter} from "./routers/notifications_router";
 import {friendRouter} from "./routers/friend_router";
 import {messageRouter} from "./routers/message_route";
-import {gameRouter} from "./routers/game_router";
+import {gameRouter, rankedQueue, scrimmageQueue} from "./routers/game_router";
 
 // Socket.io authentication
 import {authorize} from "@thream/socketio-jwt";
@@ -131,14 +131,13 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             // have to refresh the friends list
             io.on('connection', (socket => {
                 sessionStore.saveSession(socket.user.id, {online:true, game:''});
-                io.emit('broadcast','users');
                 socket.join(socket.user.id);
 
                 // Check the user's friends and notify them if they are online
                 user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
                     if(user){
                         for(let friend of user.friends){
-                            if(sessionStore.findSession(friend.toString())){
+                            if(sessionStore.findSession(friend.toString())?.online){
                                 socket.to(friend.toString()).emit('friend update');
                             }
                         }
@@ -150,12 +149,16 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                         user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
                             if (user) {
                                 for (let friend of user.friends) {
-                                    if (sessionStore.findSession(friend.toString())) {
+                                    if (sessionStore.findSession(friend.toString())?.online) {
                                         socket.to(friend.toString()).emit('friend update');
                                     }
                                 }
                             }
                         })
+                        // If the user disconnect we remove him from the queues and warn the user if it was in queue
+                        if(rankedQueue.delete(socket.user.id) || scrimmageQueue.delete(socket.user.id)){
+                            io.emit("queue update");
+                        }
                     }
                     sessionStore.saveSession(socket.user.id, {online:false, game:''});
                 })

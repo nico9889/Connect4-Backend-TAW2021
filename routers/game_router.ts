@@ -119,8 +119,8 @@ interface GameInfo {
 const games: Map<String, GameInfo> = new Map<String, GameInfo>();
 
 // UserID, RATIO
-const rankedQueue: Map<string, number> = new Map();
-const scrimmageQueue: Map<string, number> = new Map();
+export const rankedQueue: Map<string, number> = new Map();
+export const scrimmageQueue: Map<string, number> = new Map();
 
 function createGame(currentUser: user.User, opponentUser: user.User) {
     // If the users where queued we remove them from queues
