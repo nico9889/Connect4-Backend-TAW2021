@@ -25,9 +25,7 @@ messageRouter.route('/:id')
                 receiver: {
                     $in: [req.user.id, req.params.id]
                 }
-            })
-            .populate('sender', 'username')
-            .populate('receiver', 'username')
+            }, {onModel:0})
             .then((messages) => {
                 if (!messages) {
                     return next({status: 404, error: true, errormessage: 'Messages not found'});
