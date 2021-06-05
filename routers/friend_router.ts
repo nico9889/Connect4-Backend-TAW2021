@@ -15,7 +15,7 @@ friendRouter.route("/")
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
 
-        user.getModel().findOne({_id: req.user.id}).populate('friends', '_id username avatar').then((currentUser) => {
+        user.getModel().findOne({_id: req.user.id}).populate('friends', '_id username').then((currentUser) => {
             if (!currentUser) {
                 return next({status: 500, error: true, message: "An error occurred while retrieving friends"});
             }
@@ -28,7 +28,6 @@ friendRouter.route("/")
                     username: friend.username,
                     online: session?.online || false,
                     game: session?.game || '',
-                    avatar: friend.avatar
                 });
             })
             return res.status(200).json(out);
@@ -130,8 +129,7 @@ friendRouter.route("/:id")
                     id: user.id,
                     username: user.username,
                     online: session?.online || false,
-                    game: session?.game || '',
-                    avatar: user.avatar
+                    game: session?.game || ''
                 };
                 return res.status(200).json(friend);
             })

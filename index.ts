@@ -48,6 +48,7 @@ const port: number = 8080;
 
 // ExpressJS Middleware
 app.use(cors());
+// @ts-ignore
 app.use(express.json());
 
 // Routers
@@ -101,7 +102,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
 
             // Make HTTP server to listen on the specified port and hostname. If hostname is missing then it's listening
             // from every connection
-            server.listen(port, (hostname) ? hostname: "0.0.0.0", () => console.log("HTTP Server started on port 8080"));
+            server.listen(port, (hostname) ? hostname : "0.0.0.0", () => console.log("HTTP Server started on port 8080"));
 
             // Creating new socket.io server. CORS options need to be specified from v3.0
             io = new Server(server, {
@@ -119,7 +120,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                 onAuthentication: async decodedToken => {
                     return {
                         id: decodedToken.id,
-                        username : decodedToken.username,
+                        username: decodedToken.username,
                         roles: decodedToken.roles,
                     }
                 }
@@ -130,14 +131,14 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             // All the friends already connected will be notified that a friend has connected/disconnected, and they
             // have to refresh the friends list
             io.on('connection', (socket => {
-                sessionStore.saveSession(socket.user.id, {online:true, game:''});
+                sessionStore.saveSession(socket.user.id, {online: true, game: ''});
                 socket.join(socket.user.id);
 
                 // Check the user's friends and notify them if they are online
-                user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
-                    if(user){
-                        for(let friend of user.friends){
-                            if(sessionStore.findSession(friend.toString())?.online){
+                user.getModel().findOne({_id: socket.user.id}, {friends: 1}).then((user) => {
+                    if (user) {
+                        for (let friend of user.friends) {
+                            if (sessionStore.findSession(friend.toString())?.online) {
                                 socket.to(friend.toString()).emit('friend update');
                             }
                         }
@@ -145,8 +146,8 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                 })
 
                 socket.on('disconnect', (_) => {
-                    if(socket.user) {
-                        user.getModel().findOne({_id: socket.user.id}, {friends:1}).then((user) => {
+                    if (socket.user) {
+                        user.getModel().findOne({_id: socket.user.id}, {friends: 1}).then((user) => {
                             if (user) {
                                 for (let friend of user.friends) {
                                     if (sessionStore.findSession(friend.toString())?.online) {
@@ -156,11 +157,11 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                             }
                         })
                         // If the user disconnect we remove him from the queues and warn the user if it was in queue
-                        if(rankedQueue.delete(socket.user.id) || scrimmageQueue.delete(socket.user.id)){
+                        if (rankedQueue.delete(socket.user.id) || scrimmageQueue.delete(socket.user.id)) {
                             io.emit("queue update");
                         }
                     }
-                    sessionStore.saveSession(socket.user.id, {online:false, game:''});
+                    sessionStore.saveSession(socket.user.id, {online: false, game: ''});
                 })
             }));
         })

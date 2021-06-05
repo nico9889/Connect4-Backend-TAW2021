@@ -31,7 +31,7 @@ export interface Friend{
     username: string;
     online: boolean;
     game: string;
-    avatar: string;
+    avatar?: string;
 }
 
 let userSchema = new mongoose.Schema<User>({
