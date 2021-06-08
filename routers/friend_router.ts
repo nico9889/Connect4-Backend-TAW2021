@@ -24,7 +24,7 @@ friendRouter.route("/")
                 const session = sessionStore.findSession(friend._id.toString());
 
                 out.push({
-                    id: friend._id.toString(),
+                    _id: friend._id.toString(),
                     username: friend.username,
                     online: session?.online || false,
                     game: session?.game || '',
@@ -126,7 +126,7 @@ friendRouter.route("/:id")
                 }
                 const session = sessionStore.findSession(user._id.toString());
                 const friend: Friend = {
-                    id: user.id,
+                    _id: user.id,
                     username: user.username,
                     online: session?.online || false,
                     game: session?.game || ''

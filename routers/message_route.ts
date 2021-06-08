@@ -45,11 +45,10 @@ messageRouter.route('/:id')
                     if (!messages) {
                         return next({status: 404, error: true, errormessage: 'Messages not found'});
                     }
-                    console.log(messages);
                     return res.status(200).json(messages);
                 })
                 .catch((err) => {
-                    console.log(err);
+                    console.error(err);
                     return next({status: 500, error: true, errormessage: 'Generic error occurred. Try again later!'});
                 })
         })
@@ -89,7 +88,7 @@ messageRouter.route('/:id')
                 }
                 return res.status(200).json({error: false, errormessage: ''});
             }).catch((err) => {
-                console.log(err);
+                console.error(err);
                 return next({status: 500, error: true, errormessage: 'Error while saving the message'});
             })
         }).catch((err) => {

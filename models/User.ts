@@ -27,7 +27,7 @@ export interface User extends mongoose.Document {
 }
 
 export interface Friend{
-    id: string;
+    _id: string;
     username: string;
     online: boolean;
     game: string;
