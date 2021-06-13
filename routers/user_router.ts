@@ -56,8 +56,11 @@ userRouter.route("/:user_id/avatar")
             return next({status:500, error:true, message:"Generic error occurred"});
         }
         user.getModel().findOne({_id:req.params.user_id}).then((u) => {
-            if(!u || !u?.avatar){
+            if(!u){
                 return next({status:404, error:true, message: "User not found"});
+            }
+            if(!u.avatar){
+                return res.status(200).json({});
             }
             return res.status(200).json({avatar:u.avatar});
         }).catch((err) => {

@@ -1,6 +1,6 @@
 import express = require('express');
 import {auth, moderator} from '../utils/auth'
-import {checkSentNotification, newNotification, Type} from "../models/Notification";
+import {checkNotification, newNotification, Type} from "../models/Notification";
 import * as user from '../models/User';
 import * as game from '../models/Game';
 import * as message from '../models/Message';
@@ -207,6 +207,8 @@ gameRouter.route('/invite')
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
                 const dest = currentUser.friends.find((id) => {
+                    console.log(id);
+                    console.log(req.body.id);
                     return id.toString() === req.body.id;
                 })
                 if (!dest) {
@@ -233,7 +235,7 @@ gameRouter.route('/invite')
             return next({status: 403, error: true, message: "This request doesn't belong to you!"});
         }
 
-        if (!checkSentNotification(req.user, req.body.notification)) {
+        if (!checkNotification(req.user, req.body.notification)) {
             return next({
                 status: 403,
                 error: true,

@@ -18,6 +18,7 @@ import * as user from './models/User';
 
 // Routers
 import {userRouter} from './routers/user_router'
+import {users2Router} from "./routers/users2_router";
 import {authRouter} from "./routers/auth_router";
 import {leaderboardRouter} from "./routers/leaderboard_router";
 import {notificationsRouter} from "./routers/notifications_router";
@@ -34,6 +35,7 @@ import {DefaultEventsMap} from 'socket.io/dist/typed-events';
 
 // First time admin random password creation
 import crypto = require('crypto');
+
 
 // Socket.io server
 export let io: Server<DefaultEventsMap, DefaultEventsMap>;
@@ -54,6 +56,7 @@ app.use(express.json());
 // Routers
 app.use("/v1/", authRouter);
 app.use("/v1/users", userRouter);
+app.use("/v2/users", users2Router);
 app.use("/v1/leaderboard", leaderboardRouter);
 app.use("/v1/notifications", notificationsRouter);
 app.use("/v1/friendship", friendRouter);

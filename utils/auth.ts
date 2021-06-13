@@ -38,24 +38,22 @@ passport.use(new passportHTTP.BasicStrategy(
         user.getModel().findOne({username: username}, (err: any, user: User) => {
             if (err) {
                 console.error(err)
-                return done({statusCode: 500, error: true});
+                return done({status: 500, error: true});
             }
             if (!user) {
                 console.error("Login attempt with wrong username: " + username);
                 // @ts-ignore
-                return done(null, false, {status: 500, error: true, message: "Invalid username"});
+                return done(null, false, {message: "Invalid username"});
             }
             if (user.enabled) {
                 if (user.validatePassword(password)) {
                     return done(null, user);
                 }
                 console.error("User attempted to login with wrong password");
-                // @ts-ignore
-                return done(null, false, {status: 500, error: true, message: "Invalid password"});
+                return done({status: 401, error: true, message: "Invalid password"} );
             } else {
                 console.error("Disabled user tried to login");
-                // @ts-ignore
-                return done(null, false, {status: 500, error: true, message: "User not enabled"});
+                return done({status: 500, error: true, message: "User not enabled"});
             }
         })
     }

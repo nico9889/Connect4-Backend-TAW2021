@@ -1,6 +1,6 @@
 import express = require('express');
 import {auth, moderator} from '../utils/auth'
-import {checkSentNotification, newNotification, Type} from "../models/Notification";
+import {checkNotification, newNotification, Type} from "../models/Notification";
 import * as user from '../models/User';
 import {Friend} from "../models/User";
 import {io, sessionStore} from "../index";
@@ -69,7 +69,7 @@ friendRouter.route("/")
             return next({status: 403, error: true, message: "This request doesn't belong to you!"});
         }
 
-        if (!checkSentNotification(req.user, req.body.notification)) {
+        if (!checkNotification(req.user, req.body.notification)) {
             return next({
                 status: 403,
                 error: true,

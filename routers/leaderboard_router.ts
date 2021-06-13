@@ -30,7 +30,7 @@ leaderboardRouter.get("/", (req, res, next) => {
             return res.status(200).json(leaderboard.slice(0, 9));
         })
         .catch((exception) => {
-            console.log(exception);
+            console.error(exception);
             return next({status: 500, error: true, message: ""});
         })
 });
