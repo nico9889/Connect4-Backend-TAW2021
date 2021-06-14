@@ -45,7 +45,14 @@ export function newNotification(type: Type, senderUser: Express.User | undefined
 // Get all the user notifications that has to be sent to the users.
 // Preserving game notification and friend notification to check later if they have been accepted
 export function getNotifications(user: Express.User): Notification[] {
-    return notifications.get(user.id) || [];
+    const toSend = notifications.get(user.id);
+    if(toSend){
+        const filtered = toSend.filter((notification) => {return notification.type !== Type.PRIVATE_MESSAGE});
+        notifications.set(user.id, filtered);
+        return toSend;
+    }else{
+        return [];
+    }
 }
 
 // Check if the notification that the user is responding is a valid notification that has been sent
