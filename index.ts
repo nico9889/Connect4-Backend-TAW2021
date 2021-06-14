@@ -135,14 +135,17 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             // have to refresh the friends list
             io.on('connection', (socket => {
                 sessionStore.saveSession(socket.user.id, {online: true, game: ''});
+                console.log("User subscribed through socket: " + socket.user.username);
                 socket.join(socket.user.id);
 
                 // Check the user's friends and notify them if they are online
                 user.getModel().findOne({_id: socket.user.id}, {friends: 1}).then((user) => {
                     if (user) {
                         for (let friend of user.friends) {
+                            const response = [];
                             if (sessionStore.findSession(friend.toString())?.online) {
-                                socket.to(friend.toString()).emit('friend update');
+                                response.push(friend.toString());
+                                socket.to(friend.toString()).emit('friend online', {id: socket.user.id});
                             }
                         }
                     }
@@ -154,7 +157,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
                             if (user) {
                                 for (let friend of user.friends) {
                                     if (sessionStore.findSession(friend.toString())?.online) {
-                                        socket.to(friend.toString()).emit('friend update');
+                                        socket.to(friend.toString()).emit('friend offline', {id: socket.user.id});
                                     }
                                 }
                             }
