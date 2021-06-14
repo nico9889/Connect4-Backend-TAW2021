@@ -3,6 +3,7 @@ import {auth, moderator} from "../utils/auth";
 import * as user from "../models/User";
 import {Role} from "../models/User";
 import {query, validationResult} from "express-validator";
+import {sessionStore} from "../index";
 
 export const users2Router = express.Router();
 
@@ -25,10 +26,24 @@ users2Router.get("/", auth, moderator,
             })
         } else {
             user.getModel().findOne({_id: req.user.id}).populate('friends', '_id username victories defeats').then((currentUser) => {
+                if(!currentUser){
+                    return next({status:500, error:true, message: 'Generic error occurred'});
+                }
+                const friends = [];
+                for(const friend of currentUser.friends){
+                    friends.push({
+                        _id: friend.id,
+                        username: friend.username,
+                        victories: friend.victories,
+                        defeats: friend.defeats,
+                        online: sessionStore.findSession(friend._id.toString())?.online,
+                        game: sessionStore.findSession(friend._id.toString())?.game
+                    })
+                }
                 if (!currentUser) {
                     return next({status: 500, error: true, message: 'Generic error occurred'});
                 }
-                return res.status(200).json(currentUser.friends);
+                return res.status(200).json(friends);
             }).catch((err) => {
                 console.error(err);
                 return next({status: 500, error: true, message: 'Generic error occurred'})
