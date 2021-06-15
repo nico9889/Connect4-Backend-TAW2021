@@ -6,6 +6,7 @@ import * as game from '../models/Game';
 import * as message from '../models/Message';
 import {io, sessionStore} from "../index";
 import {User} from "../models/User";
+import {body, validationResult} from "express-validator";
 
 export let gameRouter = express.Router();
 
@@ -488,7 +489,14 @@ gameRouter.route('/:id')
         })
     })
     // Update the board making a move
-    .put(auth, moderator, (req, res, next) => {
+    .put(auth, 
+        moderator, 
+        body('column','Request must contain an integer number between 0 and 6').isInt({min:0, max:6}),
+        (req, res, next) => {
+            const result = validationResult(req);
+            if (!result.isEmpty()) {
+                return next({status: 500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg});
+            }
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
@@ -523,7 +531,7 @@ gameRouter.route('/:id')
             return next({status: 403, error: true, message: "You cannot play this game, or it's not your turn"});
         }
 
-        if (req.body.x < 0 || !gameInfo.board.put(req.body.x, coin)) {
+        if (req.body.column < 0 || !gameInfo.board.put(req.body.column, coin)) {
             return next({status: 403, error: true, message: "Invalid move"});
         }
 
