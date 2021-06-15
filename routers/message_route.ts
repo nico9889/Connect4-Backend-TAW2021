@@ -20,14 +20,11 @@ messageRouter.route('/:id')
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
             let limit = 50;
-            try {
-                validationResult(req).throw()
-                if (req.query.limit) {
-                    limit = parseInt(req.query.limit as string);
-                }
-            } catch (err) {
-                console.error(err);
-                limit = 50;
+            const result = validationResult(req);
+            if(!result.isEmpty()){
+                return next({status:500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg})
+            }else if (req.query.limit) {
+                limit = parseInt(req.query.limit as string);
             }
 
             message.getModel()
@@ -78,7 +75,7 @@ messageRouter.route('/:id')
             const mess = message.newMessage(req.user.id, req.params.id, message.Type.User, req.body.message.content);
             mess.save().then(() => {
                 if (req.user) {
-                    io.to(req.params.id).emit('private message', {
+                    io.to(req.params.id).emit('message new', {
                         from: req.user.id
                     })
                 }
