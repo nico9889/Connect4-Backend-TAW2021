@@ -6,7 +6,7 @@ import * as game from '../models/Game';
 import * as message from '../models/Message';
 import {io, sessionStore} from "../index";
 import {User} from "../models/User";
-import {body, validationResult} from "express-validator";
+import {body, query, validationResult} from "express-validator";
 
 export let gameRouter = express.Router();
 
@@ -246,8 +246,11 @@ gameRouter.route('/invite')
         if (req.body.accept !== true) {
             return res.status(200).json({});
         }
-        user.getModel().findOne({_id: req.body.notification.receiver}, {username:1, friends: 1}).then((currentUser) => {
-            user.getModel().findOne({_id: req.body.notification.sender}, {username:1, friends: 1}).then((sender) => {
+        user.getModel().findOne({_id: req.body.notification.receiver}, {
+            username: 1,
+            friends: 1
+        }).then((currentUser) => {
+            user.getModel().findOne({_id: req.body.notification.sender}, {username: 1, friends: 1}).then((sender) => {
                 if (!currentUser || !sender) {
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
@@ -279,7 +282,12 @@ gameRouter.route("/ranked")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}, {username:1, friends: 1, victories:1, defeats:1}).then((currentUser) => {
+        user.getModel().findOne({_id: req.user.id}, {
+            username: 1,
+            friends: 1,
+            victories: 1,
+            defeats: 1
+        }).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
@@ -298,7 +306,12 @@ gameRouter.route("/ranked")
                     return res.status(200).json({error: false, message: ""});
                 } else {
                     rankedQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}, {username:1, friends: 1, victories:1, defeats:1}).then((opponentUser) => {
+                    user.getModel().findOne({_id: opponent}, {
+                        username: 1,
+                        friends: 1,
+                        victories: 1,
+                        defeats: 1
+                    }).then((opponentUser) => {
                         if (!opponentUser) {
                             return next({status: 500, error: true, message: "Generic error occurred"});
                         }
@@ -337,7 +350,7 @@ gameRouter.route("/scrimmage")
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}, {username:1, friends: 1}).then((currentUser) => {
+        user.getModel().findOne({_id: req.user.id}, {username: 1, friends: 1}).then((currentUser) => {
             if (!req.user || !currentUser) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
@@ -350,7 +363,7 @@ gameRouter.route("/scrimmage")
                     return res.status(200).json({error: false, message: ""});
                 } else {
                     scrimmageQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}, {username:1, friends: 1}).then((opponentUser) => {
+                    user.getModel().findOne({_id: opponent}, {username: 1, friends: 1}).then((opponentUser) => {
                         if (!opponentUser) {
                             return next({status: 500, error: true, message: "Generic error occurred"});
                         }
@@ -402,48 +415,63 @@ gameRouter.route('/:spectate_id/spectate')
     })
 
 gameRouter.route('/:game_message_id/messages')
-    .get(auth, moderator, (req, res, next) => {
-        if (!req.user) {
-            return next({status: 500, error: true, message: "Generic error occurred"});
-        }
-        const gameInfo = games.get(req.params.game_message_id);
-        if (!gameInfo) {
-            return next({status: 404, error: true, message: "Game not found"});
-        }
-        if (req.user.id === (gameInfo.game.playerOne as User)._id.toString() || req.user.id === (gameInfo.game.playerTwo as User)._id.toString()) {
-            message.getModel()
-                .find({
-                    sender: {$in: [gameInfo.game.playerOne, gameInfo.game.playerTwo]},
-                    receiver: req.params.game_message_id,
-                })
-                .populate('sender', 'username')
-                .then((messages) => {
-                    return res.status(200).json(messages);
-                })
-                .catch((err) => {
-                    console.error(err);
-                    return next({
-                        status: 500, error: true, message: 'Error while retrieving the messages'
-                    });
-                });
-        } else if (gameInfo.spectators.includes(req.user.id)) {
-            message.getModel().find({receiver: req.params.game_message_id})
-                .populate('sender', 'username')
-                .then((messages) => {
-                    if (messages) {
+    .get(auth,
+        moderator,
+        query("limit", "Must be a positive integer value greater than 0.").optional().isInt({min: 1}),
+        (req, res, next) => {
+            if (!req.user) {
+                return next({status: 500, error: true, message: "Generic error occurred"});
+            }
+
+            let limit = 50;
+            const result = validationResult(req);
+            if (!result.isEmpty()) {
+                return next({status: 500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg})
+            } else if (req.query.limit) {
+                limit = parseInt(req.query.limit as string);
+            }
+
+            const gameInfo = games.get(req.params.game_message_id);
+            if (!gameInfo) {
+                return next({status: 404, error: true, message: "Game not found"});
+            }
+            if (req.user.id === (gameInfo.game.playerOne as User)._id.toString() || req.user.id === (gameInfo.game.playerTwo as User)._id.toString()) {
+                message.getModel()
+                    .find({
+                        sender: {$in: [gameInfo.game.playerOne, gameInfo.game.playerTwo]},
+                        receiver: req.params.game_message_id,
+                    }, {onModel: 0})
+                    .sort("-datetime")
+                    .limit(limit)
+                    .then((messages) => {
+                        console.log(messages);
                         return res.status(200).json(messages);
-                    } else {
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        return next({
+                            status: 500, error: true, message: 'Error while retrieving the messages'
+                        });
+                    });
+            } else if (gameInfo.spectators.includes(req.user.id)) {
+                message.getModel().find({receiver: req.params.game_message_id}, {onModel: 0})
+                    .sort("-datetime")
+                    .limit(limit)
+                    .then((messages) => {
+                        if (messages) {
+                            return res.status(200).json(messages);
+                        } else {
+                            return next({status: 500, error: true, message: "Error while retrieving messages"});
+                        }
+                    })
+                    .catch((err) => {
+                        console.error(err);
                         return next({status: 500, error: true, message: "Error while retrieving messages"});
-                    }
-                })
-                .catch((err) => {
-                    console.error(err);
-                    return next({status: 500, error: true, message: "Error while retrieving messages"});
-                })
-        } else {
-            return next({status: 403, error: true, message: "You are not a player nor a spectator"});
-        }
-    })
+                    })
+            } else {
+                return next({status: 403, error: true, message: "You are not a player nor a spectator"});
+            }
+        })
     .post(auth, moderator, (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
@@ -455,12 +483,12 @@ gameRouter.route('/:game_message_id/messages')
         if (req.user.id !== gameInfo.game.playerOne.toString() && req.user.id !== gameInfo.game.playerTwo.toString() && !gameInfo.spectators.includes(req.user.id)) {
             return next({status: 403, error: true, message: "You are not a player nor a spectator"});
         }
-        if (!req.body.message || req.body.message.trim().length <= 0) {
+        if (!req.body.message || req.body.message.content.trim().length <= 0) {
             return next({status: 500, error: true, message: "Message is too short"});
         }
-        const mess = message.newMessage(req.user.id, gameInfo.game._id.toString(), message.Type.Game, req.body.message);
+        const mess = message.newMessage(req.user.id, gameInfo.game._id.toString(), message.Type.Game, req.body.message.content);
         mess.save().then(_ => {
-            io.to(gameInfo.game._id.toString()).emit('game message new');
+            io.to(gameInfo.game._id.toString()).emit('message new');
             return res.status(200).json({error: false, message: ""});
         }).catch((err) => {
             console.error(err);
@@ -489,93 +517,93 @@ gameRouter.route('/:id')
         })
     })
     // Update the board making a move
-    .put(auth, 
-        moderator, 
-        body('column','Request must contain an integer number between 0 and 6').isInt({min:0, max:6}),
+    .put(auth,
+        moderator,
+        body('column', 'Request must contain an integer number between 0 and 6').isInt({min: 0, max: 6}),
         (req, res, next) => {
             const result = validationResult(req);
             if (!result.isEmpty()) {
                 return next({status: 500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg});
             }
-        if (!req.user) {
-            return next({status: 500, error: true, message: "Generic error occurred"});
-        }
-        const gameInfo = games.get(req.params.id);
-        if (!gameInfo) {
-            return next({status: 404, error: true, message: "Game not found"});
-        }
+            if (!req.user) {
+                return next({status: 500, error: true, message: "Generic error occurred"});
+            }
+            const gameInfo = games.get(req.params.id);
+            if (!gameInfo) {
+                return next({status: 404, error: true, message: "Game not found"});
+            }
 
-        if (gameInfo.game.winner || gameInfo.game.ended) {
+            if (gameInfo.game.winner || gameInfo.game.ended) {
+                return res.status(200).json({
+                    board: gameInfo.board,
+                    playerOne: gameInfo.game.playerOne,
+                    playerTwo: gameInfo.game.playerTwo,
+                    winner: gameInfo.game.winner,
+                    playerOneTurn: gameInfo.playerOneTurn,
+                    spectators: gameInfo.spectators
+                })
+            }
+
+            let currentPlayer: string;
+            let coin: Coin;
+
+            if (gameInfo.playerOneTurn) {
+                currentPlayer = (gameInfo.game.playerOne as User)._id.toString();
+                coin = Coin.Red;
+            } else {
+                currentPlayer = (gameInfo.game.playerTwo as User)._id.toString();
+                coin = Coin.Yellow;
+            }
+
+            if (req.user.id !== currentPlayer) {
+                return next({status: 403, error: true, message: "You cannot play this game, or it's not your turn"});
+            }
+
+            if (req.body.column < 0 || !gameInfo.board.put(req.body.column, coin)) {
+                return next({status: 403, error: true, message: "Invalid move"});
+            }
+
+            gameInfo.playerOneTurn = !gameInfo.playerOneTurn;
+
+            const winnerCoin = gameInfo.board.checkWinner();
+            if (gameInfo.board.getRemainingMoves() === 0 || winnerCoin !== Coin.None) {
+                let loserId;
+                if (winnerCoin === Coin.Red) {
+                    gameInfo.game.winner = gameInfo.game.playerOne;
+                    loserId = gameInfo.game.playerTwo;
+                } else if (winnerCoin === Coin.Yellow) {
+                    gameInfo.game.winner = gameInfo.game.playerTwo;
+                    loserId = gameInfo.game.playerOne;
+                }
+
+                gameInfo.game.board = gameInfo.board.get();
+                gameInfo.game.moves = gameInfo.board.getMoves();
+                gameInfo.game.ended = new Date();
+                gameInfo.game.save();
+                // @ts-ignore
+                user.getModel().findOne({_id: gameInfo.game.winner}).then((winner) => {
+                    if (winner) {
+                        winner.victories += 1;
+                        winner.save();
+                    }
+                });
+                // @ts-ignore
+                user.getModel().findOne({_id: loserId}).then((loser) => {
+                    if (loser) {
+                        loser.defeats += 1;
+                        loser.save();
+                    }
+                });
+            }
+
+            io.to(gameInfo.game.id.toString()).emit('game update');
             return res.status(200).json({
                 board: gameInfo.board,
                 playerOne: gameInfo.game.playerOne,
                 playerTwo: gameInfo.game.playerTwo,
                 winner: gameInfo.game.winner,
                 playerOneTurn: gameInfo.playerOneTurn,
-                spectators: gameInfo.spectators
+                spectators: gameInfo.spectators,
+                ended: gameInfo.game.ended
             })
-        }
-
-        let currentPlayer: string;
-        let coin: Coin;
-
-        if (gameInfo.playerOneTurn) {
-            currentPlayer = (gameInfo.game.playerOne as User)._id.toString();
-            coin = Coin.Red;
-        } else {
-            currentPlayer = (gameInfo.game.playerTwo as User)._id.toString();
-            coin = Coin.Yellow;
-        }
-
-        if (req.user.id !== currentPlayer) {
-            return next({status: 403, error: true, message: "You cannot play this game, or it's not your turn"});
-        }
-
-        if (req.body.column < 0 || !gameInfo.board.put(req.body.column, coin)) {
-            return next({status: 403, error: true, message: "Invalid move"});
-        }
-
-        gameInfo.playerOneTurn = !gameInfo.playerOneTurn;
-
-        const winnerCoin = gameInfo.board.checkWinner();
-        if (gameInfo.board.getRemainingMoves() === 0 || winnerCoin !== Coin.None) {
-            let loserId;
-            if (winnerCoin === Coin.Red) {
-                gameInfo.game.winner = gameInfo.game.playerOne;
-                loserId = gameInfo.game.playerTwo;
-            } else if (winnerCoin === Coin.Yellow) {
-                gameInfo.game.winner = gameInfo.game.playerTwo;
-                loserId = gameInfo.game.playerOne;
-            }
-
-            gameInfo.game.board = gameInfo.board.get();
-            gameInfo.game.moves = gameInfo.board.getMoves();
-            gameInfo.game.ended = new Date();
-            gameInfo.game.save();
-            // @ts-ignore
-            user.getModel().findOne({_id: gameInfo.game.winner}).then((winner) => {
-                if (winner) {
-                    winner.victories += 1;
-                    winner.save();
-                }
-            });
-            // @ts-ignore
-            user.getModel().findOne({_id: loserId}).then((loser) => {
-                if (loser) {
-                    loser.defeats += 1;
-                    loser.save();
-                }
-            });
-        }
-
-        io.to(gameInfo.game.id.toString()).emit('game update');
-        return res.status(200).json({
-            board: gameInfo.board,
-            playerOne: gameInfo.game.playerOne,
-            playerTwo: gameInfo.game.playerTwo,
-            winner: gameInfo.game.winner,
-            playerOneTurn: gameInfo.playerOneTurn,
-            spectators: gameInfo.spectators,
-            ended: gameInfo.game.ended
-        })
-    });
+        });
