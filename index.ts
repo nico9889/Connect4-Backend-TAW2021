@@ -6,7 +6,6 @@ import mongoose = require('mongoose');
 
 // Express
 import express = require('express');
-
 // Express Middleware
 import cors = require('cors');
 
@@ -43,7 +42,6 @@ export let io: Server<DefaultEventsMap, DefaultEventsMap>;
 export const sessionStore = new InMemorySessionStore();
 
 let app = express();
-
 
 const hostname: string | undefined = undefined;
 const port: number = 8080;

@@ -153,6 +153,12 @@ userRouter.route("/:user_id")
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
 
+                if (req.body.enabled === true){
+                    u.enabled = true;
+                }else if (req.body.enabled === false){
+                    u.enabled = false;
+                }
+
                 if (req.body.oldPassword && req.body.newPassword) {
                     if (!u.validatePassword(req.body.oldPassword)) {
                         return next({status: 403, error: true, message: "Invalid old password"});
