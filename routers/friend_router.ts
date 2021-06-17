@@ -48,7 +48,7 @@ friendRouter.route("/")
         }
 
         user.getModel().findOne({username: req.body.username}).then((receiver) => {
-            if (!(req.body.request == true && req.user !== undefined && receiver && receiver._id.toString() !== req.user.id)) {
+            if (!(req.user !== undefined && receiver && receiver._id.toString() !== req.user.id)) {
                 return next({status: 500, error: true, message: "Invalid request"});
             }
             newNotification(Type.FRIEND_REQUEST, req.user, receiver._id.toString(), 10);
