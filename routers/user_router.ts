@@ -178,14 +178,16 @@ userRouter.route("/:user_id")
             if (!target) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
-            if (!user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && !target.hasRole(Role.ADMIN)) {
+            if (!user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) || target.hasRole(Role.ADMIN)) {
                 return next({status: 403, error: true, message: "You are not authorized to access this resource"});
             }
             for (const friend of target.friends) {
-                const index = friend.friends.indexOf(target);
-                if (index > -1) {
-                    friend.friends.splice(index, 1);
-                }
+                friend.friends = friend.friends.filter((friend) => {
+                    // Friends are not populated recursively. For TypeScript friends are always users, but in this
+                    // case are just IDs. We need to trick TypeScript so it can compare the ID as a string, even if it's
+                    // convinced that the ID is a User.
+                    return friend.toString() !== target._id.toString();
+                })
                 friend.save();
             }
             target.delete();
