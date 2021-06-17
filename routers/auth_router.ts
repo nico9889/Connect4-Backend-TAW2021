@@ -3,11 +3,12 @@ import jsonwebtoken = require('jsonwebtoken');
 import {auth, passport} from '../utils/auth';
 import * as user from '../models/User';
 import {Role} from "../models/User";
+import {body, validationResult} from "express-validator";
 
 export const authRouter = express.Router()
 
 // Login endpoint: it makes use of passport middleware to authenticate the user and send back to the user the JWT token
-authRouter.get("/login", passport.authenticate('basic', {session: false}), (req, res, next) => {
+authRouter.get("/login", passport.authenticate('basic', {session: false}), (req, res) => {
     if (!req.user) {
         return res.status(500).json({error: true, message: ""})
     }
@@ -37,37 +38,38 @@ authRouter.get("/logout", auth, (req, res, next) => {
 })
 
 // Register endpoint: create a new user, disabled by default
-authRouter.post("/register", (req, res, next) => {
-    if (!req.body.username) {
-        return next({status: 500, error: true, message: "Missing username"});
-    }
+authRouter.post("/register",
+    body('username', 'Missing or invalid username. Username must be alphanumeric, minimum 2 and maximum 32 characters length.').exists()
+        .isAlphanumeric().isLength({min:2, max:32}),
+    body('password', "Password must contain at least 8 characters, 1 uppercase, 1 lowercase and 1 number").exists()
+        .isStrongPassword({
+            minLength: 8,
+            minUppercase: 1,
+            minLowercase: 1,
+            minNumbers: 1,
+            minSymbols: 0
+        }),
+    (req, res, next) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) {
+            const messages = [];
+            for (let val of result.array()) {
+                messages.push(val.msg);
+            }
+            console.log(result.array())
+            return next({status: 403, error: true, message: messages})
+        }
 
-    if (!req.body.password) {
-        return next({status: 500, error: true, message: "Missing password"});
-    }
-
-    if (req.body.username.length < 4 && req.body.username.length > 32) {
-        return next({status: 500, error: true, message: "Username must be between 4 and 32 characters length"});
-    }
-
-    if (!/(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}/.test(req.body.password)) {
-        return next({
-            status: 500,
-            error: true,
-            message: "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
-        });
-    }
-
-    const u = user.newUser({username: req.body.username, enabled: false});
-    u.setPassword(req.body.password);
-    u.save().then((data) => {
-        return res.status(200).json({error: false, message: "", id: data._id});
-    }).catch((reason) => {
-        if (reason.code === 11000)
-            return next({statusCode: 500, error: true, message: "User already exists"});
-        return next({status: 500, error: true, message: reason.message});
-    })
-});
+        const u = user.newUser({username: req.body.username, enabled: false});
+        u.setPassword(req.body.password);
+        u.save().then((data) => {
+            return res.status(200).json({error: false, message: "", id: data._id});
+        }).catch((reason) => {
+            if (reason.code === 11000)
+                return next({statusCode: 500, error: true, message: "User already exists"});
+            return next({status: 500, error: true, message: reason.message});
+        })
+    });
 
 // Register endpoint: create a new moderator
 authRouter.post("/moderator/register", auth, (req, res, next) => {

@@ -124,9 +124,10 @@ userRouter.route("/:user_id")
         body('enabled', "Must be a boolean value").optional().isBoolean(),
         body('newPassword', "Must contain at least 8 characters, 1 uppercase, 1 lowercase and 1 number").optional().isStrongPassword({
             minLength: 8,
+            minUppercase: 1,
             minLowercase: 1,
             minNumbers: 1,
-            minUppercase: 1
+            minSymbols: 0
         }),
         (req, res, next) => {
             if (!req.user) {
@@ -137,7 +138,6 @@ userRouter.route("/:user_id")
                 return next({status: 403, error: true, message: "You are not authorized to access this resource"});
             }
 
-            // FIXME: password is not validated correctly
             const result = validationResult(req);
             if (!result.isEmpty()) {
                 const messages = [];
