@@ -196,6 +196,66 @@ function createGame(currentUser: user.User, opponentUser: user.User) {
     return newGame;
 }
 
+gameRouter.get('/played',
+    auth,
+    moderator,
+    query('user').optional().isMongoId(),
+    (req, res, next) => {
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
+        if (req.query.user === undefined || req.user.id === req.query.user) {
+            game.getModel().find({
+                $or: [{playerOne: req.user.id}, {playerTwo: req.user.id}]
+            }).populate('playerOne', '_id username')
+                .populate('playerTwo', '_id username')
+                .populate('winner', '_id username').then((games) => {
+                if (!games) {
+                    return next({status: 404, error: true, message: 'No games found'});
+                }
+                return res.status(200).json(games);
+            }).catch((err) => {
+                console.error(err);
+                return next({status: 500, error: true, message: "Error while retrieving games"});
+            })
+        } else {
+            user.getModel().findOne({_id: req.user.id})
+                .then((currentUser) => {
+                    if (!currentUser) {
+                        return next({status: 404, error: true, message: 'User not found'});
+                    }
+                    const friend = currentUser.friends.find((friend) => {
+                        return friend._id.toString() === req.params.user.toString();
+                    })
+                    if (!friend || !currentUser.hasRole(user.Role.MODERATOR)) {
+                        return next({
+                            status: 403,
+                            error: true,
+                            message: 'You are not authorized to access this resource'
+                        });
+                    }
+                    game.getModel().find({
+                        $or: [{playerOne: req.params.user}, {playerTwo: req.params.user}]
+                    }).populate('playerOne', '_id username')
+                        .populate('playerTwo', '_id username')
+                        .populate('winner', '_id username').then((games) => {
+                        if (!games) {
+                            return next({status: 404, error: true, message: 'No games found'});
+                        }
+                        return res.status(200).json(games);
+                    }).catch((err) => {
+                        console.error(err);
+                        return next({status: 500, error: true, message: "Error while retrieving user"});
+                    })
+                })
+                .catch((err) => {
+                    console.error(err);
+                    return next({status: 500, error: true, message: "Error while retrieving user"});
+                })
+        }
+    });
+
+
 gameRouter.route('/invite')
     // Create a new game invitation if current user and invited user are friends
     .post(auth, moderator, (req, res, next) => {
@@ -208,8 +268,6 @@ gameRouter.route('/invite')
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
                 const dest = currentUser.friends.find((id) => {
-                    console.log(id);
-                    console.log(req.body.id);
                     return id.toString() === req.body.id;
                 })
                 if (!dest) {
@@ -504,17 +562,39 @@ gameRouter.route('/:id')
         }
         const gameInfo = games.get(req.params.id);
         if (!gameInfo) {
-            return next({status: 404, error: true, message: "Game not found"});
+            game.getModel().findOne({_id: req.params.id})
+                .populate('playerOne', '_id username')
+                .populate('playerTwo', '_id username')
+                .populate('winner', '_id username')
+                .then((game) => {
+                    if (!game) {
+                        return next({status: 404, error: true, message: "Game not found"});
+                    }
+                    return res.status(200).json({
+                        board: {board: game.board},
+                        playerOne: game.playerOne,
+                        playerTwo: game.playerTwo,
+                        winner: game.winner,
+                        playerOneTurn: true,
+                        spectators: [],
+                        ended: game.ended
+                    })
+                })
+                .catch((err) => {
+                    console.error(err);
+                    return next({status: 500, error: true, message: 'Generic error occurred'});
+                })
+        } else {
+            return res.status(200).json({
+                board: gameInfo.board,
+                playerOne: gameInfo.game.playerOne,
+                playerTwo: gameInfo.game.playerTwo,
+                winner: gameInfo.game.winner,
+                playerOneTurn: gameInfo.playerOneTurn,
+                spectators: gameInfo.spectators,
+                ended: gameInfo.game.ended
+            })
         }
-        return res.status(200).json({
-            board: gameInfo.board,
-            playerOne: gameInfo.game.playerOne,
-            playerTwo: gameInfo.game.playerTwo,
-            winner: gameInfo.game.winner,
-            playerOneTurn: gameInfo.playerOneTurn,
-            spectators: gameInfo.spectators,
-            ended: gameInfo.game.ended
-        })
     })
     // Update the board making a move
     .put(auth,
