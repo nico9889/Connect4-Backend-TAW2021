@@ -227,7 +227,7 @@ gameRouter.get('/played',
                     const friend = currentUser.friends.find((friend) => {
                         return friend._id.toString() === req.query.user?.toString();
                     })
-                    if (!friend || !currentUser.hasRole(user.Role.MODERATOR)) {
+                    if (!friend && !currentUser.hasRole(user.Role.MODERATOR)) {
                         return next({
                             status: 403,
                             error: true,
