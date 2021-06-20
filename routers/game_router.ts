@@ -503,7 +503,6 @@ gameRouter.route('/:game_message_id/messages')
                     .sort("-datetime")
                     .limit(limit)
                     .then((messages) => {
-                        console.log(messages);
                         return res.status(200).json(messages);
                     })
                     .catch((err) => {

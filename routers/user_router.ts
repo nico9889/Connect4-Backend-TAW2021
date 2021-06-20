@@ -144,7 +144,7 @@ userRouter.route("/:user_id")
                 for (let val of result.array()) {
                     messages.push(val.msg);
                 }
-                console.log(result.array())
+                console.error(result.array())
                 return next({status: 403, error: true, message: messages})
             }
 
