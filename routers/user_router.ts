@@ -178,7 +178,7 @@ userRouter.route("/:user_id")
             if (!target) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
-            if (!user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) || target.hasRole(Role.ADMIN)) {
+            if (!user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) || target.hasRole(Role.ADMIN) || target.hasRole(Role.MODERATOR)) {
                 return next({status: 403, error: true, message: "You are not authorized to access this resource"});
             }
             for (const friend of target.friends) {
