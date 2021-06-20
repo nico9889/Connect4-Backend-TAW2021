@@ -204,7 +204,7 @@ gameRouter.get('/played',
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        if (req.query.user === undefined || req.user.id === req.query.user) {
+        if (!req.query.user || req.user.id === req.query.user) {
             game.getModel().find({
                 $or: [{playerOne: req.user.id}, {playerTwo: req.user.id}]
             }).populate('playerOne', '_id username')
@@ -225,7 +225,7 @@ gameRouter.get('/played',
                         return next({status: 404, error: true, message: 'User not found'});
                     }
                     const friend = currentUser.friends.find((friend) => {
-                        return friend._id.toString() === req.params.user.toString();
+                        return friend._id.toString() === req.query.user?.toString();
                     })
                     if (!friend || !currentUser.hasRole(user.Role.MODERATOR)) {
                         return next({
@@ -234,8 +234,9 @@ gameRouter.get('/played',
                             message: 'You are not authorized to access this resource'
                         });
                     }
+
                     game.getModel().find({
-                        $or: [{playerOne: req.params.user}, {playerTwo: req.params.user}]
+                        $or: [{playerOne: req.query.user?.toString()}, {playerTwo: req.query.user?.toString()}]
                     }).populate('playerOne', '_id username')
                         .populate('playerTwo', '_id username')
                         .populate('winner', '_id username').then((games) => {
