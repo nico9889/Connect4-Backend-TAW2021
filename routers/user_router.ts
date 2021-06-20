@@ -52,20 +52,20 @@ userRouter.get("/", auth, moderator, (req, res, next) => {
 
 userRouter.route("/:user_id/avatar")
     .get(auth, moderator, (req, res, next) => {
-        if(!req.user){
-            return next({status:500, error:true, message:"Generic error occurred"});
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id:req.params.user_id}).then((u) => {
-            if(!u){
-                return next({status:404, error:true, message: "User not found"});
+        user.getModel().findOne({_id: req.params.user_id}).then((u) => {
+            if (!u) {
+                return next({status: 404, error: true, message: "User not found"});
             }
-            if(!u.avatar){
+            if (!u.avatar) {
                 return res.status(200).json({});
             }
-            return res.status(200).json({avatar:u.avatar});
+            return res.status(200).json({avatar: u.avatar});
         }).catch((err) => {
             console.error(err);
-            return next({status:500, error:true, message: "Error while retrieving user data"})
+            return next({status: 500, error: true, message: "Error while retrieving user data"})
         })
     })
     .post(auth, moderator, upload.single('avatar'), (req, res, next) => {
@@ -81,16 +81,16 @@ userRouter.route("/:user_id/avatar")
             return next({status: 500, error: true, message: "Error while uploading file"});
         }
 
-        user.getModel().findOne({_id:req.params.user_id}).then((u) => {
-            if(!u){
-                return next({status:404, error:true, message: "User not found"});
+        user.getModel().findOne({_id: req.params.user_id}).then((u) => {
+            if (!u) {
+                return next({status: 404, error: true, message: "User not found"});
             }
             u.avatar = "data:" + req.file.mimetype + ";base64," + req.file.buffer.toString("base64");
             u.save();
             return res.status(200).json({error: false, message: ''});
         }).catch((err) => {
             console.error(err);
-            return next({status:500, error:true, message: "Generic error occurred"});
+            return next({status: 500, error: true, message: "Generic error occurred"});
         })
     });
 
@@ -101,19 +101,37 @@ userRouter.route("/:user_id")
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
 
-        if (!user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && req.user.id !== req.params.user_id) {
-            return next({status: 403, error: true, message: "You are not authorized to access this resource"});
-        }
-
         if (req.user.registered_on === req.user.last_password_change) {
             return next({status: 403, error: true, message: "You must change your password before"});
         }
-
-        user.getModel().findOne({_id: req.params.user_id}, {digest: 0, salt: 0}).then((user) => {
-            if (!user) {
+        user.getModel().findOne({_id: req.params.user_id}, {digest: 0, salt: 0}).then((target) => {
+            if (!target) {
                 return next({status: 404, error: true, message: "User not found"});
             }
-            return res.status(200).json(user);
+            if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
+                return res.status(200).json(target);
+            }else{
+                if (target.friends.find((friend) => {
+                    if (req.user) {
+                        return friend.id === req.user.id;
+                    }
+                })){
+                    const session = sessionStorage.findSession(target.id);
+                    return res.status(200).json({
+                        _id: target._id,
+                        username: target.username,
+                        victories: target.victories,
+                        defeats: target.defeats,
+                        online: session.online,
+                        game: session.game
+                    })
+                }else{
+                    return res.status(200).json({
+                        _id: target._id,
+                        username: target.username,
+                    })
+                }
+            }
         }).catch((e) => {
             console.error(e);
             return next({status: 404, error: true, message: "User not found"});
@@ -153,9 +171,9 @@ userRouter.route("/:user_id")
                     return next({status: 500, error: true, message: "Generic error occurred"});
                 }
 
-                if (req.body.enabled === true){
+                if (req.body.enabled === true) {
                     u.enabled = true;
-                }else if (req.body.enabled === false){
+                } else if (req.body.enabled === false) {
                     u.enabled = false;
                 }
 
