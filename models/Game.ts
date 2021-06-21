@@ -10,7 +10,7 @@ export interface Game extends mongoose.Document {
     moves: number[],
     started: Date,
     ended: Date,
-    winner: User | mongoose.Types.ObjectId,
+    winner: User | mongoose.Types.ObjectId | undefined,
 }
 
 let gameSchema = new mongoose.Schema<Game>({
