@@ -184,14 +184,14 @@ function createGame(currentUser: user.User, opponentUser: user.User) {
         if (sessionStore.findSession(friend.toString())) {
             online.push(friend.toString());
         }
-        io.to(online).emit('friend update');
+        io.to(online).emit('friend online', {id: currentUser._id.toString(), game: newGame.id});
     });
     opponentUser.friends.forEach((friend) => {
         const online: string[] = [];
         if (sessionStore.findSession(friend.toString())) {
             online.push(friend.toString());
         }
-        io.to(online).emit('friend update');
+        io.to(online).emit('friend online', {id: opponentUser._id.toString(), game: newGame.id});
     });
     return newGame;
 }
