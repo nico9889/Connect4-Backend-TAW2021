@@ -40,7 +40,7 @@ authRouter.get("/logout", auth, (req, res, next) => {
 // Register endpoint: create a new user, disabled by default
 authRouter.post("/register",
     body('username', 'Missing or invalid username. Username must be alphanumeric, minimum 2 and maximum 32 characters length.').exists()
-        .isAlphanumeric().isLength({min: 2, max: 32}),
+        .isAlphanumeric().isLength({min: 4, max: 32}),
     body('password', "Password must contain at least 8 characters, 1 uppercase, 1 lowercase and 1 number").exists()
         .isStrongPassword({
             minLength: 8,
@@ -75,7 +75,7 @@ authRouter.post("/register",
 authRouter.post("/moderator/register", auth,
     moderator,
     body('username', 'Missing or invalid username. Username must be alphanumeric, minimum 2 and maximum 32 characters length.').exists()
-        .isAlphanumeric().isLength({min: 2, max: 32}),
+        .isAlphanumeric().isLength({min: 4, max: 32}),
     body('password', "Password must contain at least 8 characters, 1 uppercase, 1 lowercase and 1 number").exists()
         .isStrongPassword({
             minLength: 8,
