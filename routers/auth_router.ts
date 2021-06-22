@@ -1,6 +1,6 @@
 import express = require('express');
 import jsonwebtoken = require('jsonwebtoken');
-import {auth, passport} from '../utils/auth';
+import {auth, moderator, passport} from '../utils/auth';
 import * as user from '../models/User';
 import {Role} from "../models/User";
 import {body, validationResult} from "express-validator";
@@ -40,7 +40,7 @@ authRouter.get("/logout", auth, (req, res, next) => {
 // Register endpoint: create a new user, disabled by default
 authRouter.post("/register",
     body('username', 'Missing or invalid username. Username must be alphanumeric, minimum 2 and maximum 32 characters length.').exists()
-        .isAlphanumeric().isLength({min:2, max:32}),
+        .isAlphanumeric().isLength({min: 2, max: 32}),
     body('password', "Password must contain at least 8 characters, 1 uppercase, 1 lowercase and 1 number").exists()
         .isStrongPassword({
             minLength: 8,
@@ -72,47 +72,50 @@ authRouter.post("/register",
     });
 
 // Register endpoint: create a new moderator
-authRouter.post("/moderator/register", auth, (req, res, next) => {
-    if (!req.user) {
-        return next({status: 500, error: true, message: "Generic error occurred"});
-    }
+authRouter.post("/moderator/register", auth,
+    moderator,
+    body('username', 'Missing or invalid username. Username must be alphanumeric, minimum 2 and maximum 32 characters length.').exists()
+        .isAlphanumeric().isLength({min: 2, max: 32}),
+    body('password', "Password must contain at least 8 characters, 1 uppercase, 1 lowercase and 1 number").exists()
+        .isStrongPassword({
+            minLength: 8,
+            minUppercase: 1,
+            minLowercase: 1,
+            minNumbers: 1,
+            minSymbols: 0
+        }),
+    body('moderator').isBoolean(),
+    (req, res, next) => {
+        if (!req.user) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
 
-    if (!req.user.roles.includes(Role.MODERATOR) && !req.user.roles.includes(Role.ADMIN)) {
-        return next({status: 403, error: true, message: "Unauthorized"});
-    }
+        if (!req.user.roles.includes(Role.MODERATOR)) {
+            return next({status: 403, error: true, message: "Unauthorized"});
+        }
 
-    if (!req.body.username) {
-        return next({status: 500, error: true, message: "Missing username"});
-    }
+        const result = validationResult(req);
+        if (!result.isEmpty()) {
+            const messages = [];
+            for (let val of result.array()) {
+                messages.push(val.msg);
+            }
+            console.error(result.array())
+            return next({status: 403, error: true, message: messages})
+        }
 
-    if (!req.body.password) {
-        return next({status: 500, error: true, message: "Missing password"});
-    }
-
-    if (req.body.username.length < 4 && req.body.username.length > 32) {
-        return next({status: 500, error: true, message: "Username must be between 4 and 32 characters length"});
-    }
-
-    if (!/(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}/.test(req.body.password)) {
-        return next({
-            status: 500,
-            error: true,
-            message: "Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters"
-        });
-    }
-
-    const u = user.newUser({username: req.body.username, enabled: false});
-    u.setPassword(req.body.password);
-    u.roles = [Role.MODERATOR];
-    u.registered_on = u.last_password_change;
-    u.enabled = true;
-    u.save().then((data) => {
-        return res.status(200).json({error: false, message: "", id: data._id});
-    }).catch((reason) => {
-        if (reason.code === 11000)
-            return next({statusCode: 500, error: true, message: "User already exists"});
-        return next({status: 500, error: true, message: reason.message});
-    })
-});
+        const u = user.newUser({username: req.body.username, enabled: false});
+        u.setPassword(req.body.password);
+        u.roles = [Role.MODERATOR];
+        u.registered_on = u.last_password_change;
+        u.enabled = true;
+        u.save().then((data) => {
+            return res.status(200).json({error: false, message: "", id: data._id});
+        }).catch((reason) => {
+            if (reason.code === 11000)
+                return next({statusCode: 500, error: true, message: "User already exists"});
+            return next({status: 500, error: true, message: reason.message});
+        })
+    });
 
 
