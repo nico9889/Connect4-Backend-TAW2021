@@ -84,7 +84,6 @@ authRouter.post("/moderator/register", auth,
             minNumbers: 1,
             minSymbols: 0
         }),
-    body('moderator').isBoolean(),
     (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
