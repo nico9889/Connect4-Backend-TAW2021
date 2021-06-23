@@ -105,10 +105,10 @@ userRouter.route("/:user_id")
             return next({status: 403, error: true, message: "You must change your password before"});
         }
         user.getModel().findOne({_id: req.params.user_id}, {digest: 0, salt: 0}).then((target) => {
-            if (!target) {
+            if (!target || !req.user) {
                 return next({status: 404, error: true, message: "User not found"});
             }
-            if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN])) {
+            if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN] || req.user.id == target.id.toString()){
                 return res.status(200).json(target);
             }else{
                 if (target.friends.find((friend) => {
