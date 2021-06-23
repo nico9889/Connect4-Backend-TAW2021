@@ -108,7 +108,7 @@ userRouter.route("/:user_id")
             if (!target || !req.user) {
                 return next({status: 404, error: true, message: "User not found"});
             }
-            if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN] || req.user.id == target.id.toString()){
+            if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) || req.user.id == target.id.toString()){
                 return res.status(200).json(target);
             }else{
                 if (target.friends.find((friend) => {
