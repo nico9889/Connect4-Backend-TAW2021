@@ -196,6 +196,7 @@ function createGame(currentUser: user.User, opponentUser: user.User) {
     return newGame;
 }
 
+// Get the match played by the requesting user or the match played by the user that has been specified
 gameRouter.get('/played',
     auth,
     moderator,
@@ -328,6 +329,7 @@ gameRouter.route('/invite')
 
 
 gameRouter.route("/ranked")
+    // Get the ranked queue data
     .get(auth, (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
@@ -337,6 +339,7 @@ gameRouter.route("/ranked")
             inQueue: rankedQueue.size
         });
     })
+    // Subscribe/unsubscribe the current user to the ranked queue, if there at least one valid player creates a new match
     .put(auth, (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
@@ -396,6 +399,7 @@ gameRouter.route("/ranked")
     })
 
 gameRouter.route("/scrimmage")
+    // Retrieve the scrimmage queue data
     .get(auth, (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
@@ -405,6 +409,7 @@ gameRouter.route("/scrimmage")
             inQueue: scrimmageQueue.size
         });
     })
+    // Subscribe/unsubscribe the current user to the scrimmage queue, if there at least one player creates a new match
     .put(auth, (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
@@ -447,7 +452,8 @@ gameRouter.route("/scrimmage")
         })
     })
 
-
+// Subscribe/unsubscribe the current user to the specified match so he can be notified through a socket.io room when
+// there's a change in the match data
 gameRouter.route('/:spectate_id/spectate')
     .put(auth, moderator, (req, res, next) => {
         if (!req.user) {
@@ -473,6 +479,8 @@ gameRouter.route('/:spectate_id/spectate')
         return res.status(200).json({error: false, message: ''});
     })
 
+// Retrieves the messages related to a game from the database, if the user requesting the messages is a player it will
+// receive only the messages sent by him and his opponent
 gameRouter.route('/:game_message_id/messages')
     .get(auth,
         moderator,
@@ -555,11 +563,14 @@ gameRouter.route('/:game_message_id/messages')
     })
 
 gameRouter.route('/:id')
-    // Get the status of the match
+    // Get the status of a match
     .get(auth, moderator, (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
+
+        // Looking for the match info into the match map, if no info are found then we search for the game info
+        // into the database
         const gameInfo = games.get(req.params.id);
         if (!gameInfo) {
             game.getModel().findOne({_id: req.params.id})
@@ -613,6 +624,7 @@ gameRouter.route('/:id')
                 return next({status: 404, error: true, message: "Game not found"});
             }
 
+            // If the game is ended we just send back the game info as-is
             if (gameInfo.game.winner || gameInfo.game.ended) {
                 return res.status(200).json({
                     board: gameInfo.board,
@@ -627,6 +639,7 @@ gameRouter.route('/:id')
             let currentPlayer: string;
             let coin: Coin;
 
+            // Identifying the turn, so we can block the move if it's not the current user turn
             if (gameInfo.playerOneTurn) {
                 currentPlayer = (gameInfo.game.playerOne as User)._id.toString();
                 coin = Coin.Red;
@@ -639,12 +652,16 @@ gameRouter.route('/:id')
                 return next({status: 403, error: true, message: "You cannot play this game, or it's not your turn"});
             }
 
-            if (req.body.column < 0 || !gameInfo.board.put(req.body.column, coin)) {
+            // Trying to make the move, if the move is invalid (I.E: the column is full) we return an error
+            if (!gameInfo.board.put(req.body.column, coin)) {
                 return next({status: 403, error: true, message: "Invalid move"});
             }
 
+            // Switching the player turn
             gameInfo.playerOneTurn = !gameInfo.playerOneTurn;
 
+            // Checking if there's a winner, if a Coin is returned or there's no more space in the board
+            // then we set the game as ended
             const winnerCoin = gameInfo.board.checkWinner();
             if (gameInfo.board.getRemainingMoves() === 0 || winnerCoin !== Coin.None) {
                 let loserId;
@@ -660,14 +677,12 @@ gameRouter.route('/:id')
                 gameInfo.game.moves = gameInfo.board.getMoves();
                 gameInfo.game.ended = new Date();
                 gameInfo.game.save();
-                // @ts-ignore
                 user.getModel().findOne({_id: gameInfo.game.winner}).then((winner) => {
                     if (winner) {
                         winner.victories += 1;
                         winner.save();
                     }
                 });
-                // @ts-ignore
                 user.getModel().findOne({_id: loserId}).then((loser) => {
                     if (loser) {
                         loser.defeats += 1;
@@ -676,6 +691,8 @@ gameRouter.route('/:id')
                 });
             }
 
+            // Signaling to the players/spectators that the board has been updated and sending back game info to the
+            // current user
             io.to(gameInfo.game.id.toString()).emit('game update');
             return res.status(200).json({
                 board: gameInfo.board,

@@ -7,7 +7,7 @@ import {sessionStore} from "../index";
 
 export const users2Router = express.Router();
 
-// Get all the users
+// Get all the users if the requesting user is a moderator, return only the friends data otherwise
 users2Router.get("/", auth, moderator,
     query('friends').optional().isBoolean(),
     (req, res, next) => {

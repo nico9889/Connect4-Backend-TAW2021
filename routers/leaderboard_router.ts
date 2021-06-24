@@ -1,6 +1,7 @@
 import express = require('express');
 
 import * as user from '../models/User';
+import {auth, moderator} from "../utils/auth";
 
 export const leaderboardRouter = express.Router();
 
@@ -11,8 +12,8 @@ interface LeaderBoardUser {
     defeats: number
 }
 
-// Get the public leaderboard
-leaderboardRouter.get("/", (req, res, next) => {
+// Retrieve the top 10 users from the database
+leaderboardRouter.get( "/", auth, moderator,(req, res, next) => {
     const leaderboard: LeaderBoardUser[] = [];
     user.getModel().find({}, {digest: 0, salt: 0})
         .then((users) => {
