@@ -68,11 +68,6 @@ app.use((err, req, res, _) => {
     res.status(statusCode).json({statusCode: statusCode, error: true, message: err.message});
 });
 
-// Mongoose settings to avoid deprecation warning
-mongoose.set('useNewUrlParser', true);
-mongoose.set('useUnifiedTopology', true);
-mongoose.set('useCreateIndex', true);
-
 // Mongoose initialization and server start
 mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
     .then(

@@ -205,7 +205,7 @@ gameRouter.get('/played',
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        if (!req.query.user || req.user.id === req.query.user) {
+        if (!req.query?.user || req.user.id === req.query?.user) {
             game.getModel().find({
                 $or: [{playerOne: req.user.id}, {playerTwo: req.user.id}]
             }).populate('playerOne', '_id username')
@@ -226,7 +226,7 @@ gameRouter.get('/played',
                         return next({status: 404, error: true, message: 'User not found'});
                     }
                     const friend = currentUser.friends.find((friend) => {
-                        return friend._id.toString() === req.query.user?.toString();
+                        return friend._id.toString() === req.query?.user?.toString();
                     })
                     if (!friend && !currentUser.hasRole(user.Role.MODERATOR)) {
                         return next({
@@ -237,7 +237,7 @@ gameRouter.get('/played',
                     }
 
                     game.getModel().find({
-                        $or: [{playerOne: req.query.user?.toString()}, {playerTwo: req.query.user?.toString()}]
+                        $or: [{playerOne: req.query?.user?.toString()}, {playerTwo: req.query?.user?.toString()}]
                     }).populate('playerOne', '_id username')
                         .populate('playerTwo', '_id username')
                         .populate('winner', '_id username').then((games) => {
@@ -494,8 +494,8 @@ gameRouter.route('/:game_message_id/messages')
             const result = validationResult(req);
             if (!result.isEmpty()) {
                 return next({status: 500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg})
-            } else if (req.query.limit) {
-                limit = parseInt(req.query.limit as string);
+            } else if (req.query?.limit) {
+                limit = parseInt(req.query?.limit as string);
             }
 
             const gameInfo = games.get(req.params.game_message_id);

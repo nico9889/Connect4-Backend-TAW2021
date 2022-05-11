@@ -23,8 +23,8 @@ messageRouter.route('/:id')
             const result = validationResult(req);
             if(!result.isEmpty()){
                 return next({status:500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg})
-            }else if (req.query.limit) {
-                limit = parseInt(req.query.limit as string);
+            }else if (req.query?.limit) {
+                limit = parseInt(req.query?.limit as string);
             }
 
             message.getModel()

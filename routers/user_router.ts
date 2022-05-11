@@ -85,6 +85,9 @@ userRouter.route("/:user_id/avatar")
             if (!u) {
                 return next({status: 404, error: true, message: "User not found"});
             }
+            if (!req.file){
+                return next({status: 400, error: true, message: "Missing file"});
+            }
             u.avatar = "data:" + req.file.mimetype + ";base64," + req.file.buffer.toString("base64");
             u.save();
             return res.status(200).json({error: false, message: ''});

@@ -20,7 +20,7 @@ users2Router.get("/", auth, moderator,
                 return next({status: 500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg});
             }
         }
-        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && !req.query.friends) {
+        if (user.checkRoles(req.user, [Role.MODERATOR, Role.ADMIN]) && !req.query?.friends) {
             user.getModel().find({}, {digest: 0, salt: 0, avatar:0}).then((users) => {
                 return res.status(200).json(users);
             }).catch((err) => {
