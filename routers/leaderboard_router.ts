@@ -1,4 +1,4 @@
-import express = require('express');
+import express from 'express';
 
 import * as user from '../models/User';
 import {auth, moderator} from "../utils/auth";

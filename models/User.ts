@@ -1,5 +1,6 @@
-import mongoose = require('mongoose');
-import crypto = require('crypto');
+import mongoose from 'mongoose';
+
+import crypto from "crypto";
 
 export enum Role {
     ADMIN = "ADMIN",

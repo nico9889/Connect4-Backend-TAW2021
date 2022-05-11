@@ -1,13 +1,14 @@
 // HTTP Server
-import http = require('http')
+import http from 'http';
 
 // Mongoose
-import mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // Express
-import express = require('express');
+import express from 'express';
+
 // Express Middleware
-import cors = require('cors');
+import cors from 'cors';
 
 // Socket.io
 import {Server} from 'socket.io';
@@ -33,7 +34,8 @@ import {InMemorySessionStore} from './utils/session';
 import {DefaultEventsMap} from 'socket.io/dist/typed-events';
 
 // First time admin random password creation
-import crypto = require('crypto');
+import crypto from "crypto";
+import {token} from "./utils/auth";
 
 
 // Socket.io server
@@ -69,7 +71,12 @@ app.use((err, req, res, _) => {
 });
 
 // Mongoose initialization and server start
-mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
+mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273', {
+    user: "test",
+    pass: "test",
+    authSource: "test"
+
+})
     .then(
         () => {
             console.log("Connected to MongoDB");
@@ -112,7 +119,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/connect4-874273')
             io.use(authorize({
                 algorithms: ['HS256'],
                 // @ts-ignore
-                secret: process.env.JWT_SECRET,
+                secret: token,
                 onAuthentication: async decodedToken => {
                     return {
                         id: decodedToken.id,

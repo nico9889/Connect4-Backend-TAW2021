@@ -1,13 +1,14 @@
-import express = require('express');
+import express from 'express';
 
 import * as user from '../models/User';
 import {auth, moderator} from '../utils/auth'
 import {Role} from "../models/User";
 import {body, validationResult} from "express-validator";
-import multer = require('multer')
+import multer from 'multer';
 import {Request} from "express";
 import {FileFilterCallback} from "multer";
 import path from "path";
+import {sessionStore} from "../index";
 
 export const userRouter = express.Router();
 const storage = multer.memoryStorage();
@@ -119,14 +120,14 @@ userRouter.route("/:user_id")
                         return friend.id === req.user.id;
                     }
                 })){
-                    const session = sessionStorage.findSession(target.id);
+                    const session = sessionStore.findSession(target.id);
                     return res.status(200).json({
                         _id: target._id,
                         username: target.username,
                         victories: target.victories,
                         defeats: target.defeats,
-                        online: session.online,
-                        game: session.game
+                        online: session?.online,
+                        game: session?.game
                     })
                 }else{
                     return res.status(200).json({

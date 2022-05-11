@@ -1,4 +1,4 @@
-import express = require('express');
+import express from 'express';
 import {auth, moderator} from "../utils/auth";
 import * as user from "../models/User";
 import {Role} from "../models/User";
@@ -12,6 +12,7 @@ users2Router.get("/", auth, moderator,
     query('friends').optional().isBoolean(),
     (req, res, next) => {
         if (!req.user) {
+            console.error("Missing user");
             return next({status: 500, error: true, message: 'Generic error occurred'});
         }
         const result = validationResult(req);

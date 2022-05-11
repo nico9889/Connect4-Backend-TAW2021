@@ -1,4 +1,4 @@
-import express = require('express');
+import express from 'express';
 import {auth, moderator} from '../utils/auth'
 import {checkNotification, newNotification, Type} from "../models/Notification";
 import * as user from '../models/User';

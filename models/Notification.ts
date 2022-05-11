@@ -1,5 +1,4 @@
-import crypto = require('crypto');
-
+import crypto from 'crypto';
 export enum Type {
     ERROR,
     FRIEND_REQUEST,

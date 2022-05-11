@@ -1,11 +1,16 @@
-import jwt = require("express-jwt");
-export import passport = require('passport');
-import passportHTTP = require('passport-http');
+import {expressjwt as jwt} from "express-jwt";
+import passport from 'passport';
+import passportHTTP from 'passport-http';
 import * as user from '../models/User';
 import {Role, User} from "../models/User";
+import crypto from 'crypto';
 
-// @ts-ignore
-export const auth = jwt({algorithms: ['HS256'], secret: process.env.JWT_SECRET});
+if(process.env.JWT_SECRET === undefined){
+    console.error("Warning: missing JWT Token. Using a random generated one. All generated token will be invalid on next startup.");
+}
+export const token = process.env.JWT_SECRET ?? crypto.randomBytes(20).toString('hex');
+
+export const auth = jwt({algorithms: ['HS256'], secret: token, requestProperty: 'user'});
 
 // @ts-ignore
 export const moderator = function (req, res, next) {

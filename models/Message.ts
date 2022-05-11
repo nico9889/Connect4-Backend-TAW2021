@@ -1,4 +1,4 @@
-import mongoose = require('mongoose');
+import mongoose from 'mongoose';
 import {User} from "./User";
 import {Game} from "./Game";
 

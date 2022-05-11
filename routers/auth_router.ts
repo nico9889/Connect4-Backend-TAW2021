@@ -1,6 +1,7 @@
-import express = require('express');
-import jsonwebtoken = require('jsonwebtoken');
-import {auth, moderator, passport} from '../utils/auth';
+import express from 'express';
+import jsonwebtoken from 'jsonwebtoken';
+import passport from 'passport';
+import {auth, moderator, token} from '../utils/auth';
 import * as user from '../models/User';
 import {Role} from "../models/User";
 import {body, validationResult} from "express-validator";
@@ -21,8 +22,7 @@ authRouter.get("/login", passport.authenticate('basic', {session: false}), (req,
         registered_on: req.user.registered_on,
     };
     console.log("Login granted. Generating token");
-    // @ts-ignore
-    const token_signed = jsonwebtoken.sign(token_data, process.env.JWT_SECRET, {expiresIn: '1h'});
+    const token_signed = jsonwebtoken.sign(token_data, token, {expiresIn: '1h'});
 
     return res.status(200).json({error: false, message: "", token: token_signed});
 });
