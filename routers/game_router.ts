@@ -547,7 +547,7 @@ gameRouter.route('/:game_message_id/messages')
 
 gameRouter.route('/:id')
     // Get the status of a match
-    .get(auth, moderator, (req, res, next) => {
+    .get(auth, moderator, async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
@@ -556,28 +556,22 @@ gameRouter.route('/:id')
         // into the database
         const gameInfo = games.get(req.params.id);
         if (!gameInfo) {
-            game.getModel().findOne({_id: req.params.id})
+            const queriedGame = await game.getModel().findOne({_id: req.params.id})
                 .populate('playerOne', '_id username')
                 .populate('playerTwo', '_id username')
-                .populate('winner', '_id username')
-                .then((game) => {
-                    if (!game) {
-                        return next({status: 404, error: true, message: "Game not found"});
-                    }
-                    return res.status(200).json({
-                        board: {board: game.board},
-                        playerOne: game.playerOne,
-                        playerTwo: game.playerTwo,
-                        winner: game.winner,
-                        playerOneTurn: true,
-                        spectators: [],
-                        ended: game.ended
-                    })
-                })
-                .catch((err) => {
-                    console.error(err);
-                    return next({status: 500, error: true, message: 'Generic error occurred'});
-                })
+                .populate('winner', '_id username').catch(console.error);
+            if (!queriedGame) {
+                return next({status: 404, error: true, message: "Game not found"});
+            }
+            return res.status(200).json({
+                board: {board: queriedGame.board},
+                playerOne: queriedGame.playerOne,
+                playerTwo: queriedGame.playerTwo,
+                winner: queriedGame.winner,
+                playerOneTurn: true,
+                spectators: [],
+                ended: queriedGame.ended
+            });
         } else {
             return res.status(200).json({
                 board: gameInfo.board,
