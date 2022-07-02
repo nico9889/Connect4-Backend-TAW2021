@@ -207,7 +207,7 @@ gameRouter.get('/played',
         }
         if (!req.query?.user || req.user.id === req.query?.user) {
             try {
-                const games = game.getModel().find({
+                const games = await game.getModel().find({
                     $or: [{playerOne: req.user.id}, {playerTwo: req.user.id}]
                 }).populate('playerOne', '_id username')
                     .populate('playerTwo', '_id username')
