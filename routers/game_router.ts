@@ -201,93 +201,95 @@ gameRouter.get('/played',
     auth,
     moderator,
     query('user').optional().isMongoId(),
-    (req, res, next) => {
+    async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
         if (!req.query?.user || req.user.id === req.query?.user) {
-            game.getModel().find({
-                $or: [{playerOne: req.user.id}, {playerTwo: req.user.id}]
-            }).populate('playerOne', '_id username')
-                .populate('playerTwo', '_id username')
-                .populate('winner', '_id username').then((games) => {
+            try {
+                const games = game.getModel().find({
+                    $or: [{playerOne: req.user.id}, {playerTwo: req.user.id}]
+                }).populate('playerOne', '_id username')
+                    .populate('playerTwo', '_id username')
+                    .populate('winner', '_id username');
                 if (!games) {
                     return next({status: 404, error: true, message: 'No games found'});
                 }
                 return res.status(200).json(games);
-            }).catch((err) => {
-                console.error(err);
+            } catch (e: any) {
+                console.error(e);
                 return next({status: 500, error: true, message: "Error while retrieving games"});
-            })
+            }
         } else {
-            user.getModel().findOne({_id: req.user.id})
-                .then((currentUser) => {
-                    if (!currentUser) {
-                        return next({status: 404, error: true, message: 'User not found'});
-                    }
-                    const friend = currentUser.friends.find((friend) => {
-                        return friend._id.toString() === req.query?.user?.toString();
-                    })
-                    if (!friend && !currentUser.hasRole(user.Role.MODERATOR)) {
-                        return next({
-                            status: 403,
-                            error: true,
-                            message: 'You are not authorized to access this resource'
-                        });
-                    }
+            let currentUser;
+            try {
+                currentUser = await user.getModel().findOne({_id: req.user.id});
+            } catch (e: any) {
+                console.error(e);
+                return next({status: 500, error: true, message: "Error while retrieving the user"});
+            }
 
-                    game.getModel().find({
-                        $or: [{playerOne: req.query?.user?.toString()}, {playerTwo: req.query?.user?.toString()}]
-                    }).populate('playerOne', '_id username')
-                        .populate('playerTwo', '_id username')
-                        .populate('winner', '_id username').then((games) => {
-                        if (!games) {
-                            return next({status: 404, error: true, message: 'No games found'});
-                        }
-                        return res.status(200).json(games);
-                    }).catch((err) => {
-                        console.error(err);
-                        return next({status: 500, error: true, message: "Error while retrieving user"});
-                    })
-                })
-                .catch((err) => {
-                    console.error(err);
-                    return next({status: 500, error: true, message: "Error while retrieving user"});
-                })
+            if (!currentUser) {
+                return next({status: 404, error: true, message: 'User not found'});
+            }
+            const friend = currentUser.friends.find((friend) => {
+                return friend._id.toString() === req.query?.user?.toString();
+            })
+            if (!friend && !currentUser.hasRole(user.Role.MODERATOR)) {
+                return next({
+                    status: 403,
+                    error: true,
+                    message: 'You are not authorized to access this resource'
+                });
+            }
+            try {
+                const games = await game.getModel().find({
+                    $or: [{playerOne: req.query?.user?.toString()}, {playerTwo: req.query?.user?.toString()}]
+                }).populate('playerOne', '_id username')
+                    .populate('playerTwo', '_id username')
+                    .populate('winner', '_id username');
+
+                if (!games) {
+                    return next({status: 404, error: true, message: 'No games found'});
+                }
+                return res.status(200).json(games);
+            } catch (e: any) {
+                console.error(e);
+                return next({status: 500, error: true, message: "Error while retrieving the games"});
+            }
         }
     });
 
 
 gameRouter.route('/invite')
     // Create a new game invitation if current user and invited user are friends
-    .post(auth, moderator, (req, res, next) => {
+    .post(auth, moderator, async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id})
-            .then((currentUser) => {
-                if (!currentUser) {
-                    return next({status: 500, error: true, message: "Generic error occurred"});
-                }
-                const dest = currentUser.friends.find((id) => {
-                    return id.toString() === req.body.id;
-                })
-                if (!dest) {
-                    return next({status: 403, error: true, message: "User is not your friend"});
-                }
-                newNotification(Type.GAME_INVITE, req.user, dest.toString(), 10);
-                if (sessionStore.findSession(dest.toString())) {
-                    io.to(dest.toString()).emit("notification update");
-                }
-                return res.status(200).json({error: false, message: ""});
+        try {
+            const currentUser = await user.getModel().findOne({_id: req.user.id});
+            if (!currentUser) {
+                return next({status: 500, error: true, message: "Generic error occurred"});
+            }
+            const dest = currentUser.friends.find((id) => {
+                return id.toString() === req.body.id;
             })
-            .catch((e) => {
-                console.error(e);
-                return next({status: 500, error: true, message: "Error occurred while retrieving user"});
-            })
+            if (!dest) {
+                return next({status: 403, error: true, message: "User is not your friend"});
+            }
+            newNotification(Type.GAME_INVITE, req.user, dest.toString(), 10);
+            if (sessionStore.findSession(dest.toString())) {
+                io.to(dest.toString()).emit("notification update");
+            }
+            return res.status(200).json({error: false, message: ""});
+        } catch (e: any) {
+            console.error(e);
+            return next({status: 500, error: true, message: "Error while retrieving the user"});
+        }
     })
     // Respond to the notification, if the invited user accepted a new game is created
-    .put(auth, moderator, (req, res, next) => {
+    .put(auth, moderator, async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
@@ -306,25 +308,26 @@ gameRouter.route('/invite')
         if (req.body.accept !== true) {
             return res.status(200).json({});
         }
-        user.getModel().findOne({_id: req.body.notification.receiver}, {
+
+
+        const currentUser = await user.getModel().findOne({_id: req.body.notification.receiver}, {
             username: 1,
             friends: 1
-        }).then((currentUser) => {
-            user.getModel().findOne({_id: req.body.notification.sender}, {username: 1, friends: 1}).then((sender) => {
-                if (!currentUser || !sender) {
-                    return next({status: 500, error: true, message: "Generic error occurred"});
-                }
-                // A new game is created and added to the list of games
-                const newGame = createGame(currentUser, sender);
-                return res.status(200).json(newGame);
-            }).catch((err) => {
-                console.error(err);
-                return next({status: 500, error: true, message: "Query error"});
-            })
         }).catch((err) => {
             console.error(err);
-            return next({status: 404, error: true, message: "Query error"});
-        })
+        });
+
+        const sender = await user.getModel().findOne({_id: req.body.notification.sender}, {username: 1, friends: 1})
+            .catch((err) => {
+                console.error(err);
+            });
+
+        if (!currentUser || !sender) {
+            return next({status: 404, error: true, message: "User not found"});
+        }
+        // A new game is created and added to the list of games
+        const newGame = createGame(currentUser, sender);
+        return res.status(200).json(newGame);
     })
 
 
@@ -340,62 +343,58 @@ gameRouter.route("/ranked")
         });
     })
     // Subscribe/unsubscribe the current user to the ranked queue, if there at least one valid player creates a new match
-    .put(auth, (req, res, next) => {
+    .put(auth, async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}, {
+
+        const currentUser = await user.getModel().findOne({_id: req.user.id}, {
             username: 1,
             friends: 1,
             victories: 1,
             defeats: 1
-        }).then((currentUser) => {
-            if (!req.user || !currentUser) {
-                return next({status: 500, error: true, message: "Generic error occurred"});
-            }
-            if (req.body.subscribe === true) {
-                scrimmageQueue.delete(req.user.id);
-                const currentUserRatio = currentUser.getRatio();
-                let opponent: string | undefined = undefined;
-                rankedQueue.forEach((opponentRatio, opponentId) => {
-                    if (!opponent && opponentId !== currentUser._id.toString() && currentUserRatio >= opponentRatio - 0.25 && currentUserRatio <= (opponentRatio + 0.25)) {
-                        opponent = opponentId;
-                    }
-                });
-                if (!opponent) {
-                    rankedQueue.set(currentUser._id.toString(), currentUser.getRatio());
-                    io.emit("queue update");
-                    return res.status(200).json({error: false, message: ""});
-                } else {
-                    rankedQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}, {
-                        username: 1,
-                        friends: 1,
-                        victories: 1,
-                        defeats: 1
-                    }).then((opponentUser) => {
-                        if (!opponentUser) {
-                            return next({status: 500, error: true, message: "Generic error occurred"});
-                        }
-                        createGame(currentUser, opponentUser);
-                        io.emit("queue update");
-                        return res.status(200).json({error: false, message: ""});
-                    }).catch((err) => {
-                        console.error(err);
-                        return next({status: 500, error: true, message: "Invalid body request"});
-                    })
+        }).catch(console.error);
+
+        if (!currentUser) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
+
+        if (req.body.subscribe === true) {
+            scrimmageQueue.delete(req.user.id);
+            const currentUserRatio = currentUser.getRatio();
+            let opponent: string | undefined = undefined;
+            rankedQueue.forEach((opponentRatio, opponentId) => {
+                if (!opponent && opponentId !== currentUser._id.toString() && currentUserRatio >= opponentRatio - 0.25 && currentUserRatio <= (opponentRatio + 0.25)) {
+                    opponent = opponentId;
                 }
-            } else if (req.body.subscribe === false) {
-                rankedQueue.delete(req.user.id);
+            });
+            if (!opponent) {
+                rankedQueue.set(currentUser._id.toString(), currentUser.getRatio());
                 io.emit("queue update");
                 return res.status(200).json({error: false, message: ""});
             } else {
-                return next({status: 500, error: true, message: "Invalid body request"});
+                rankedQueue.delete(opponent);
+                const opponentUser = await user.getModel().findOne({_id: opponent}, {
+                    username: 1,
+                    friends: 1,
+                    victories: 1,
+                    defeats: 1
+                }).catch(console.error);
+
+                if (!opponentUser) {
+                    return next({status: 500, error: true, message: "Generic error occurred"});
+                }
+                createGame(currentUser, opponentUser);
+                io.emit("queue update");
+                return res.status(200).json({error: false, message: ""});
             }
-        }).catch((err) => {
-            console.error(err);
-            return next({status: 500, error: true, message: "Generic error occurred"});
-        })
+        } else if (req.body.subscribe === false) {
+            rankedQueue.delete(req.user.id);
+            io.emit("queue update");
+            return res.status(200).json({error: false, message: ""});
+        } else {
+            return next({status: 500, error: true, message: "Invalid body request"});
+        }
     })
 
 gameRouter.route("/scrimmage")
@@ -409,47 +408,42 @@ gameRouter.route("/scrimmage")
             inQueue: scrimmageQueue.size
         });
     })
-    // Subscribe/unsubscribe the current user to the scrimmage queue, if there at least one player creates a new match
-    .put(auth, (req, res, next) => {
+    // Subscribe/unsubscribe the current user to the scrimmage queue, if there is at least one player creates a new match
+    .put(auth, async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
-        user.getModel().findOne({_id: req.user.id}, {username: 1, friends: 1}).then((currentUser) => {
-            if (!req.user || !currentUser) {
-                return next({status: 500, error: true, message: "Generic error occurred"});
-            }
-            if (req.body.subscribe === true) {
-                rankedQueue.delete(req.user.id);
-                const opponent: string | undefined = scrimmageQueue.keys().next().value;
-                if (!opponent) {
-                    scrimmageQueue.set(currentUser._id.toString(), currentUser.getRatio());
-                    io.emit("queue update");
-                    return res.status(200).json({error: false, message: ""});
-                } else {
-                    scrimmageQueue.delete(opponent);
-                    user.getModel().findOne({_id: opponent}, {username: 1, friends: 1}).then((opponentUser) => {
-                        if (!opponentUser) {
-                            return next({status: 500, error: true, message: "Generic error occurred"});
-                        }
-                        createGame(currentUser, opponentUser);
-                        io.emit("queue update");
-                        return res.status(200).json({error: false, message: ""});
-                    }).catch((err) => {
-                        console.error(err);
-                        return next({status: 500, error: true, message: "Invalid body request"});
-                    })
-                }
-            } else if (req.body.subscribe === false) {
-                scrimmageQueue.delete(req.user.id);
+        const currentUser = await user.getModel().findOne({_id: req.user.id}, {
+            username: 1,
+            friends: 1
+        }).catch(console.error);
+        if (!currentUser) {
+            return next({status: 500, error: true, message: "Generic error occurred"});
+        }
+        if (req.body.subscribe === true) {
+            rankedQueue.delete(req.user.id);
+            const opponent: string | undefined = scrimmageQueue.keys().next().value;
+            if (!opponent) {
+                scrimmageQueue.set(currentUser._id.toString(), currentUser.getRatio());
                 io.emit("queue update");
                 return res.status(200).json({error: false, message: ""});
             } else {
-                return next({status: 500, error: true, message: "Invalid body request"});
+                scrimmageQueue.delete(opponent);
+                const opponentUser = await user.getModel().findOne({_id: opponent}, {username: 1, friends: 1});
+                if (!opponentUser) {
+                    return next({status: 500, error: true, message: "Generic error occurred"});
+                }
+                createGame(currentUser, opponentUser);
+                io.emit("queue update");
+                return res.status(200).json({error: false, message: ""});
             }
-        }).catch((err) => {
-            console.error(err);
-            return next({status: 500, error: true, message: "Generic error occurred"});
-        })
+        } else if (req.body.subscribe === false) {
+            scrimmageQueue.delete(req.user.id);
+            io.emit("queue update");
+            return res.status(200).json({error: false, message: ""});
+        } else {
+            return next({status: 500, error: true, message: "Invalid body request"});
+        }
     })
 
 // Subscribe/unsubscribe the current user to the specified match so he can be notified through a socket.io room when
@@ -485,7 +479,7 @@ gameRouter.route('/:game_message_id/messages')
     .get(auth,
         moderator,
         query("limit", "Must be a positive integer value greater than 0.").optional().isInt({min: 1}),
-        (req, res, next) => {
+        async (req, res, next) => {
             if (!req.user) {
                 return next({status: 500, error: true, message: "Generic error occurred"});
             }
@@ -503,42 +497,30 @@ gameRouter.route('/:game_message_id/messages')
                 return next({status: 404, error: true, message: "Game not found"});
             }
             if (req.user.id === (gameInfo.game.playerOne as User)._id.toString() || req.user.id === (gameInfo.game.playerTwo as User)._id.toString()) {
-                message.getModel()
+                const messages = await message.getModel()
                     .find({
                         sender: {$in: [gameInfo.game.playerOne, gameInfo.game.playerTwo]},
                         receiver: req.params.game_message_id,
                     }, {onModel: 0})
                     .sort("-datetime")
-                    .limit(limit)
-                    .then((messages) => {
-                        return res.status(200).json(messages);
-                    })
-                    .catch((err) => {
-                        console.error(err);
-                        return next({
-                            status: 500, error: true, message: 'Error while retrieving the messages'
-                        });
-                    });
+                    .limit(limit).catch(console.error);
+                if(messages === undefined || messages === null){
+                    return next({status: 500, error: true, message: "Couldn't retrieve messages"});
+                }
+                return res.status(200).json(messages);
             } else if (gameInfo.spectators.includes(req.user.id)) {
-                message.getModel().find({receiver: req.params.game_message_id}, {onModel: 0})
+                const messages = await message.getModel().find({receiver: req.params.game_message_id}, {onModel: 0})
                     .sort("-datetime")
-                    .limit(limit)
-                    .then((messages) => {
-                        if (messages) {
-                            return res.status(200).json(messages);
-                        } else {
-                            return next({status: 500, error: true, message: "Error while retrieving messages"});
-                        }
-                    })
-                    .catch((err) => {
-                        console.error(err);
-                        return next({status: 500, error: true, message: "Error while retrieving messages"});
-                    })
+                    .limit(limit).catch(console.error);
+                if(messages === undefined || messages === null){
+                    return next({status: 500, error: true, message: "Couldn't retrieve messages"});
+                }
+                return res.status(200).json(messages);
             } else {
                 return next({status: 403, error: true, message: "You are not a player nor a spectator"});
             }
         })
-    .post(auth, moderator, (req, res, next) => {
+    .post(auth, moderator, async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
@@ -553,13 +535,14 @@ gameRouter.route('/:game_message_id/messages')
             return next({status: 500, error: true, message: "Message is too short"});
         }
         const mess = message.newMessage(req.user.id, gameInfo.game._id.toString(), message.Type.Game, req.body.message.content);
-        mess.save().then(_ => {
+        try{
+            await mess.save();
             io.to(gameInfo.game._id.toString()).emit('message new');
             return res.status(200).json({error: false, message: ""});
-        }).catch((err) => {
-            console.error(err);
+        }catch(e: any){
+            console.error(e);
             return next({status: 500, error: true, message: "Error while saving message"});
-        });
+        }
     })
 
 gameRouter.route('/:id')
@@ -611,7 +594,7 @@ gameRouter.route('/:id')
     .put(auth,
         moderator,
         body('column', 'Request must contain an integer number between 0 and 6').isInt({min: 0, max: 6}),
-        (req, res, next) => {
+        async (req, res, next) => {
             const result = validationResult(req);
             if (!result.isEmpty()) {
                 return next({status: 500, error: true, message: result.array({onlyFirstError: true}).pop()?.msg});
@@ -676,19 +659,17 @@ gameRouter.route('/:id')
                 gameInfo.game.board = gameInfo.board.get();
                 gameInfo.game.moves = gameInfo.board.getMoves();
                 gameInfo.game.ended = new Date();
-                gameInfo.game.save();
-                user.getModel().findOne({_id: gameInfo.game.winner}).then((winner) => {
-                    if (winner) {
-                        winner.victories += 1;
-                        winner.save();
-                    }
-                });
-                user.getModel().findOne({_id: loserId}).then((loser) => {
-                    if (loser) {
-                        loser.defeats += 1;
-                        loser.save();
-                    }
-                });
+                await gameInfo.game.save().catch(console.error);
+                const winner = await user.getModel().findOne({_id: gameInfo.game.winner});
+                if(winner){
+                    winner.victories += 1;
+                    await winner.save().catch(console.error);
+                }
+                const loser = await user.getModel().findOne({_id: loserId});
+                if(loser){
+                    loser.defeats += 1;
+                    await loser.save().catch(console.error);
+                }
             }
 
             // Signaling to the players/spectators that the board has been updated and sending back game info to the

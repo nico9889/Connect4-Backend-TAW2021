@@ -33,7 +33,8 @@ authRouter.get("/logout", auth, (req, res, next) => {
     if (!req.user) {
         return next({status: 500, error: true, message: "User not found"});
     }
-    req.logOut();
+    req.logOut(() => {
+    });
     return res.status(200).json({error: false, message: ""});
 })
 
@@ -49,7 +50,7 @@ authRouter.post("/register",
             minNumbers: 1,
             minSymbols: 0
         }),
-    (req, res, next) => {
+    async (req, res, next) => {
         const result = validationResult(req);
         if (!result.isEmpty()) {
             const messages = [];
@@ -62,13 +63,14 @@ authRouter.post("/register",
 
         const u = user.newUser({username: req.body.username, enabled: false});
         u.setPassword(req.body.password);
-        u.save().then((data) => {
+        try {
+            const data = await u.save();
             return res.status(200).json({error: false, message: "", id: data._id});
-        }).catch((reason) => {
-            if (reason.code === 11000)
+        } catch (e: any) {
+            if (e.code === 11000)
                 return next({statusCode: 500, error: true, message: "User already exists"});
-            return next({status: 500, error: true, message: reason.message});
-        })
+            return next({status: 500, error: true, message: e.message});
+        }
     });
 
 // Register endpoint: create a new moderator
@@ -84,7 +86,7 @@ authRouter.post("/moderator/register", auth,
             minNumbers: 1,
             minSymbols: 0
         }),
-    (req, res, next) => {
+    async (req, res, next) => {
         if (!req.user) {
             return next({status: 500, error: true, message: "Generic error occurred"});
         }
@@ -108,13 +110,14 @@ authRouter.post("/moderator/register", auth,
         u.roles = [Role.MODERATOR];
         u.registered_on = u.last_password_change;
         u.enabled = true;
-        u.save().then((data) => {
+        try{
+            const data = await u.save();
             return res.status(200).json({error: false, message: "", id: data._id});
-        }).catch((reason) => {
-            if (reason.code === 11000)
+        }catch (e: any) {
+            if (e.code === 11000)
                 return next({statusCode: 500, error: true, message: "User already exists"});
-            return next({status: 500, error: true, message: reason.message});
-        })
+            return next({status: 500, error: true, message: e.message});
+        }
     });
 
 
