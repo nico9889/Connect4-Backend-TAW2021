@@ -4,6 +4,7 @@ import passportHTTP from 'passport-http';
 import * as user from '../models/User';
 import {Role, User} from "../models/User";
 import crypto from 'crypto';
+import 'dotenv/config';
 
 if(process.env.JWT_SECRET === undefined){
     console.error("Warning: missing JWT Token. Using a random generated one. All generated token will be invalid on next startup.");
